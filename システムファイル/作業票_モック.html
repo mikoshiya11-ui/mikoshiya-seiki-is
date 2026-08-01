@@ -420,9 +420,9 @@
       { subNo:'001', code:'', name:'固定側本体', material:'', finishedSize:'', heatTreatSpec:'', surfaceTreatSpec:'', qty:1, memo:'', processes:[ proc('DE', '2026-07-28', ''), proc('SU', '2026-08-03', ''), proc('PN', '2026-08-08', ''), proc('FIN', '2026-09-08', '', 'PM'), proc('NCM', '2026-09-09', '', 'PM'), proc('NC2', '2026-09-02', 'オモテ', 'PM'), proc('NC3', '2026-09-02', 'ヨコ', 'PM'), proc('NC1', '2026-09-02', 'ウラ', 'PM'), proc('DR', '2026-09-08', '', 'PM'), proc('DG', '2026-08-08', '外注-材料直送', 'PM') ] },
       { subNo:'002', code:'', name:'可動側本体', material:'', finishedSize:'', heatTreatSpec:'', surfaceTreatSpec:'', qty:1, memo:'', processes:[ proc('DE', '2026-07-28', ''), proc('SU', '2026-08-03', ''), proc('PN', '2026-08-08', ''), proc('FIN', '2026-09-08', '', 'PM'), proc('NCM', '2026-09-09', '', 'PM'), proc('ASS', '2026-08-27', '', 'PM'), proc('NC4', '2026-09-02', 'オモテ2', 'PM'), proc('NC1', '2026-08-25', 'ウラ', 'PM'), proc('NC2', '2026-08-25', 'オモテ', 'PM'), proc('NC3', '2026-08-25', 'ヨコ', 'PM'), proc('DG', '2026-08-08', '外注-材料直送', 'PM') ] },
       { subNo:'003', code:'', name:'ベントバー', material:'', finishedSize:'', heatTreatSpec:'', surfaceTreatSpec:'', qty:'8', memo:'', processes:[ proc('DE', '2026-07-28', ''), proc('SU', '2026-08-04', ''), proc('PN', '2026-08-03', ''), proc('ASS', '2026-08-27', '', 'PM'), proc('NC1', '2026-08-25', 'ウラ', 'PM'), proc('NC2', '2026-08-25', 'オモテ', 'PM'), proc('NC3', '2026-08-25', 'ヨコ', 'PM') ] },
-      { subNo:'004', code:'', name:'ヒータープレート①可動手前側', material:'', finishedSize:'', heatTreatSpec:'', surfaceTreatSpec:'', qty:'2', memo:'', processes:[ proc('DE', '2026-07-28', ''), proc('SU', '2026-07-28', ''), proc('PN', '2026-07-27', ''), proc('NC', '2026-09-03', '', 'PM', '0.4'), proc('FIN', '2026-09-09', '', 'PM') ] },
+      { subNo:'004', code:'', name:'ヒータープレート①可動手前側', material:'', finishedSize:'', heatTreatSpec:'', surfaceTreatSpec:'', qty:'2', memo:'', processes:[ proc('DE', '2026-07-28', ''), proc('SU', '2026-07-28', ''), proc('PN', '2026-07-27', ''), proc('NC', '2026-09-03', '', 'PM'), proc('FIN', '2026-09-09', '', 'PM') ] },
       { subNo:'005', code:'', name:'ヒータープレート②可動奥側', material:'', finishedSize:'', heatTreatSpec:'', surfaceTreatSpec:'', qty:'2', memo:'', processes:[ proc('DE', '2026-07-28', ''), proc('SU', '2026-07-28', ''), proc('PN', '2026-07-27', ''), proc('NC', '2026-09-03', '', 'PM'), proc('FIN', '2026-09-09', '', 'PM') ] },
-      { subNo:'006', code:'', name:'ヒータープレート③固定側', material:'', finishedSize:'', heatTreatSpec:'', surfaceTreatSpec:'', qty:'4', memo:'', processes:[ proc('DE', '2026-07-27', ''), proc('SU', '2026-07-28', ''), proc('PN', '2026-07-27', ''), proc('NC', '2026-09-03', '', 'PM', '0.8'), proc('FIN', '2026-09-09', '', 'PM') ] },
+      { subNo:'006', code:'', name:'ヒータープレート③固定側', material:'', finishedSize:'', heatTreatSpec:'', surfaceTreatSpec:'', qty:'4', memo:'', processes:[ proc('DE', '2026-07-27', ''), proc('SU', '2026-07-28', ''), proc('PN', '2026-07-27', ''), proc('NC', '2026-09-03', '', 'PM'), proc('FIN', '2026-09-09', '', 'PM') ] },
       { subNo:'007', code:'', name:'矯正治具①', material:'', finishedSize:'', heatTreatSpec:'', surfaceTreatSpec:'', qty:1, memo:'', processes:[ proc('DE', '2026-07-28', ''), proc('SU', '2026-07-28', ''), proc('FIN', '2026-09-09', '', 'PM'), proc('MI', '2026-09-06', '', 'PM') ] },
       { subNo:'014', code:'', name:'大型アングル', material:'', finishedSize:'', heatTreatSpec:'', surfaceTreatSpec:'', qty:1, memo:'', processes:[ proc('DE', '2026-07-28', ''), proc('SU', '2026-07-28', ''), proc('FIN', '2026-09-09', '', 'PM'), proc('MI', '2026-09-06', '', 'PM') ] },
       { subNo:'008', code:'', name:'突き出しピン①φ6', material:'', finishedSize:'', heatTreatSpec:'', surfaceTreatSpec:'', qty:'16', memo:'', processes:[ proc('DE', '2026-07-28', ''), proc('SU', '2026-07-28', ''), proc('FIN', '2026-09-09', '', 'PM'), proc('LA', '2026-09-06', '', 'PM') ] },
@@ -472,6 +472,45 @@
     localStorage.setItem(DAYS_UPGRADE_KEY, '1');
   }
   upgradeDaysOnce();
+
+  // ---- 一度だけの移行処理：見積工数(hours)は今のところどの画面からも編集できず、元のExcel移行時の
+  // 数値がそのまま残っているだけで、今後の実態を表すものではないため、既存データからは一律で消しておく。
+  // （編集画面を用意するまでの間、根拠のない数値が印刷物に出てしまうのを防ぐ）
+  //
+  // 共有テスト（_sakaeSync.js）が有効な場合、ページ読み込み直後はまだSupabase側の古い値を
+  // 取り込んでいる最中のことがあり、そのタイミングでここを実行すると、消したそばから
+  // 古い値で上書きされてしまう。そのため、同期の初回読み込みが終わる（window.sakaeSupabaseが
+  // 使えるようになる）のを少し待ってから実行し、消した内容が確実にSupabase側にも反映されるようにする ----
+  const HOURS_CLEAR_KEY = 'sakaeIS_hoursClear_v1';
+  function clearStaleHoursOnce(){
+    if(localStorage.getItem(HOURS_CLEAR_KEY)) return;
+    for(let i=0;i<localStorage.length;i++){
+      const k = localStorage.key(i);
+      if(!k || k.indexOf('sakaeIS_buhinhyoMock_v1_')!==0) continue;
+      let bs;
+      try{ bs = JSON.parse(localStorage.getItem(k)); }catch(e){ continue; }
+      if(!bs) continue;
+      let changed = false;
+      (bs.parts||[]).forEach(p=>(p.processes||[]).forEach(pr=>{
+        if(pr.hours){ pr.hours = ''; changed = true; }
+      }));
+      if(changed) localStorage.setItem(k, JSON.stringify(bs));
+    }
+    localStorage.setItem(HOURS_CLEAR_KEY, '1');
+  }
+  (function scheduleClearStaleHours(){
+    const syncOff = (typeof window.SAKAE_SYNC_ENABLED !== 'undefined' && !window.SAKAE_SYNC_ENABLED)
+      || !window.SAKAE_SUPABASE_URL || !window.SAKAE_SUPABASE_ANON_KEY;
+    if(syncOff){ clearStaleHoursOnce(); return; } // 共有オフなら待たずにすぐ実行
+    let tries = 0;
+    const timer = setInterval(()=>{
+      tries++;
+      if(window.sakaeSupabase || tries>40){ // 準備できた、または最大20秒待っても来なければ諦めて実行
+        clearInterval(timer);
+        clearStaleHoursOnce();
+      }
+    }, 500);
+  })();
 
   // ---- 過去の不具合（品番なしで戻ってしまい共有キーを汚染していた）で溜まった品番なしデータを一度だけ掃除する ----
   // 正規のキーは必ず「sakaeIS_buhinhyoMock_v1_品番」の形なので、サフィックス無しのこのキーが残っていること自体が不具合の痕跡
