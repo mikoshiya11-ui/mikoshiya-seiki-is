@@ -188,7 +188,7 @@
 
     <div class="noteBar">
       現物の作業票印刷（A3横1枚＝左「作業票」＋完了チケット×12、右「作業票（控）」＋控えタグ×8）に合わせて作り直し中です。<br>
-      今は試作として、部品「001」だけを表示しています（表示専用・ここでは入力できません。項目を直したい場合は作業票側で編集してください）。<br>
+      枝番「000」（ASSY・組付/検査）を除く全部品を、枝番の若い順に1部品＝1枚（工程が13以上なら複数枚）ずつまとめて表示します（表示専用・ここでは入力できません。項目を直したい場合は作業票側で編集してください）。<br>
       工程は日程の若い順（同じ日程ならNC1→NC2→NC3のように数字順）にNO.1〜を振り直して並べています（12行に満たない分は空欄）。着手欄には作業票の工程日付を表示（現物と同じく完成欄は手書き用に空欄のまま）。予定工数はLA・MI・NC系の工程のみ表示します。<br>
       「機械名・外注／人名」欄は現物にはありますが、作業票側にまだ入力箇所がないため今は空欄です（今後作業票側に追加予定）。<br>
       完了チケットにはバーコード（社内No.-部品コード-工程コード）を印刷しています。工程完了時に千切って実績入力画面でスキャンすると、事務員の手入力なしで対象が自動選択されます。
@@ -363,12 +363,16 @@
   const order = state.order;
   const parts = state.parts || [];
 
-  // ---- 試作段階：部品「001」だけを対象にする（000のASSYや他の部品は今回は対象外） ----
-  const targetPart = parts.find(p => (p.subNo||'').trim() === '001');
+  // ---- 全部品を対象にする（枝番「000」＝ASSY・組付/検査の行は現物でも個別の作業票が無いため対象外） ----
+  // 枝番の数字が若い順（001→002→…）に並べて、その順に1部品＝1枚（工程が13以上なら複数枚）ずつ印刷する
+  const targetParts = parts
+    .filter(p => (p.subNo||'').trim() !== '000' && (p.subNo||'').trim() !== '')
+    .slice()
+    .sort((a,b)=> (a.subNo||'').localeCompare((b.subNo||''), 'ja', { numeric:true }));
 
-  if(!targetPart){
+  if(!targetParts.length){
     emptyState.style.display = 'block';
-    emptyState.textContent = 'この社内No.には枝番「001」の部品が見つかりません（作業票側で001を確認してください）。';
+    emptyState.textContent = 'この社内No.には印刷対象の部品が見つかりません（作業票側で枝番を確認してください）。';
     return;
   }
 
@@ -525,10 +529,17 @@
 
   function render(){
     controlBar.style.display = 'flex';
-    const pages = processPages(targetPart);
-    ctitle.textContent = '部品「001」' + (targetPart.name ? '（'+targetPart.name+'）' : '') + ' を表示中（試作）'
-      + (pages.length>1 ? '　全'+pages.length+'枚' : '');
-    slipArea.innerHTML = pages.map((list,idx)=> slipSheetHtml(targetPart, list, idx+1, pages.length)).join('');
+    let totalSheets = 0;
+    const html = targetParts.map(part=>{
+      const pages = processPages(part);
+      totalSheets += pages.length;
+      return pages.map((list,idx)=> slipSheetHtml(part, list, idx+1, pages.length)).join('');
+    }).join('');
+    const partLabel = targetParts.length===1
+      ? '部品「'+esc(targetParts[0].subNo||'')+'」' + (targetParts[0].name ? '（'+esc(targetParts[0].name)+'）' : '')
+      : '部品「'+esc(targetParts[0].subNo||'')+'」〜「'+esc(targetParts[targetParts.length-1].subNo||'')+'」';
+    ctitle.textContent = partLabel + '　全'+targetParts.length+'部品・計'+totalSheets+'枚';
+    slipArea.innerHTML = html;
     emptyState.style.display = 'none';
   }
 
