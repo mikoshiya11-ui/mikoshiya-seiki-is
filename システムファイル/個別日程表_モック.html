@@ -1,0 +1,2238 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>個別日程表｜MIKOSHIYA SEIKI-iS</title>
+<style>
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:#f4f6fa; color:#1a2233;
+    font-family:"Hiragino Sans","Yu Gothic",-apple-system,BlinkMacSystemFont,sans-serif;
+  }
+  .topbar{
+    background:#173a68; color:#fff; padding:12px 24px; display:flex; align-items:center; gap:10px;
+    font-size:15px; font-weight:700;
+  }
+  .topbar .brand{ display:flex; align-items:baseline; gap:2px; }
+  .topbar .brand .sakae{ color:#fff; }
+  .topbar .brand .is{ color:#f0a35c; }
+  .topbar .sep{ color:#5b7aab; }
+  .topbar .pageName{ font-weight:400; color:#cfe0f5; }
+  .topbar .backLink{ margin-right:auto; color:#cfe0f5; text-decoration:none; font-size:13.5px; font-weight:400; }
+  .topbar .backLink:hover{ text-decoration:underline; }
+
+  .wrap{ max-width:1680px; margin:0 auto; padding:20px 20px 60px; }
+  :root{ --day-w:30px; }
+
+  .orderCard{
+    background:#fff; border-radius:14px; padding:8px 20px; box-shadow:0 2px 10px rgba(20,35,70,.06);
+    display:flex; flex-wrap:wrap; align-items:center; gap:16px; margin-bottom:8px;
+  }
+  .orderCard .oNo{ font-size:18px; font-weight:800; color:#173a68; line-height:1.25; }
+  .orderCard .oModel{ font-size:14px; font-weight:700; color:#2a3446; line-height:1.25; }
+  .orderCard .oMeta{ font-size:11px; color:#7a879c; line-height:1.3; }
+  .shipBadge{
+    margin-left:auto; background:#e8f0fe; color:#1a56c4; font-weight:700; font-size:13px;
+    padding:5px 16px; border-radius:20px; white-space:nowrap;
+  }
+  .dueBadge{
+    background:#fff3e0; color:#c9720d; font-weight:700; font-size:13px;
+    padding:5px 16px; border-radius:20px; white-space:nowrap;
+  }
+
+  .checkCard{
+    background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(20,35,70,.06); overflow:hidden; margin-bottom:16px;
+  }
+  .checkCardTitle{ font-size:11px; font-weight:700; color:#5b6b84; padding:5px 14px 0; }
+
+  .confirmRow{ display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
+  .confirmPlanBtn{
+    border:none; background:#173a68; color:#fff; font-size:13px; font-weight:700; padding:8px 16px;
+    border-radius:8px; cursor:pointer; font-family:inherit;
+  }
+  .confirmPlanBtn:hover{ filter:brightness(1.1); }
+  .confirmHint{ font-size:12px; color:#a4adbc; }
+  .confirmBadge{
+    background:#eaf5ee; color:#1e8449; font-weight:700; font-size:13px; padding:7px 14px; border-radius:8px;
+    border:1px solid #cdeadb;
+  }
+  .confirmUnlockBtn{
+    border:1.5px solid #dfe4ec; background:#fff; color:#5b6b84; font-size:12.5px; font-weight:700; padding:7px 13px;
+    border-radius:8px; cursor:pointer; font-family:inherit;
+  }
+  .confirmUnlockBtn:hover{ border-color:#173a68; color:#173a68; }
+  .checkScroll{ overflow-x:auto; }
+  .checkInner{ min-width:max-content; padding-bottom:3px; }
+  .checkHeaderRow{ display:flex; border-bottom:1.5px solid #222; background:#f7f9fc; }
+  .checkSideHead{ flex:0 0 280px; padding:4px 14px; font-size:11.5px; font-weight:700; color:#5b6b84; display:flex; align-items:center; border-right:1.5px solid #222; position:sticky; left:0; z-index:3; background:#f7f9fc; }
+  .checkNameRow{ display:flex; align-items:stretch; height:20px; border-bottom:1px solid #f3f5f9; }
+  .checkNameRow:last-child{ border-bottom:none; }
+  .checkNameCell{ flex:0 0 280px; padding:0 14px; font-size:12px; font-weight:700; color:#3a4a63; display:flex; align-items:center; border-right:1.5px solid #222; position:sticky; left:0; z-index:2; background:#fff; box-shadow:2px 0 4px -2px rgba(20,35,70,.15); }
+  .checkCell{
+    width:var(--day-w); flex:0 0 var(--day-w); display:flex; align-items:center; justify-content:center; cursor:pointer;
+    border-right:1px solid #f3f5f9; user-select:none;
+  }
+  .checkMark{
+    width:14px; height:14px; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800;
+  }
+  .checkCell.done .checkMark{ color:#1e8449; }
+  .checkCell.done .checkMark::after{ content:'✓'; }
+  .checkCell.today{ background:rgba(23,58,104,.07); }
+
+  .toolRow{ display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
+  .monthToggle{ display:flex; gap:4px; background:#fff; border-radius:10px; padding:4px; box-shadow:0 2px 8px rgba(20,35,70,.06); }
+  .monthToggle button{
+    border:none; background:transparent; color:#5b6b84; font-size:13.5px; font-weight:700; padding:7px 15px;
+    border-radius:7px; cursor:pointer; font-family:inherit;
+  }
+  .monthToggle button.active{ background:#173a68; color:#fff; }
+
+  .rangeToggle{
+    display:flex; align-items:center; gap:6px; background:#fff; border-radius:10px; padding:6px 10px;
+    box-shadow:0 2px 8px rgba(20,35,70,.06); font-size:12px; font-weight:700; color:#5b6b84;
+  }
+  .rangeToggle input[type=date]{
+    border:1px solid #dfe4ec; border-radius:6px; padding:4px 6px; font-size:12px; font-family:inherit; color:#3a4a63;
+  }
+  .rangeToggle .rangeTilde{ color:#a4adbc; font-weight:400; }
+  .rangeToggle .rangeResetBtn{
+    border:none; background:#f4f6fa; color:#5b6b84; font-size:11px; font-weight:700; padding:6px 10px;
+    border-radius:6px; cursor:pointer; font-family:inherit;
+  }
+  .rangeToggle .rangeResetBtn:hover{ background:#eef1f6; color:#173a68; }
+
+  .legend{ display:flex; gap:10px; align-items:center; font-size:12px; color:#5b6b84; margin-bottom:10px; flex-wrap:wrap; }
+  .legend .lgItem{ display:flex; align-items:center; gap:4px; }
+  .legend .lgSwatch{ width:14px; height:9px; border-radius:3px; display:inline-block; }
+  .legend .lgHint{ margin-left:auto; color:#a4adbc; }
+
+  .ganttCard{
+    background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(20,35,70,.06); margin-bottom:16px;
+  }
+  .ganttHeaderScroll{
+    overflow:hidden; position:sticky; top:0; z-index:6; background:#fff; border-radius:14px 14px 0 0;
+  }
+  .ganttHeaderInner{ min-width:max-content; }
+  .ganttScroll{ overflow-x:auto; overflow-y:hidden; border-radius:0 0 14px 14px; }
+  .ganttInner{ min-width:max-content; position:relative; }
+
+  .ganttMonthRow{ display:flex; border-bottom:1px solid #dfe4ec; background:#eef1f6; }
+  .ganttHeaderRow{ display:flex; border-bottom:1.5px solid #222; background:#f7f9fc; }
+  .ganttSideHead{ flex:0 0 280px; padding:3px 14px; font-size:12px; font-weight:700; color:#5b6b84; display:flex; align-items:center; border-right:1.5px solid #222; position:sticky; left:0; z-index:3; background:#f7f9fc; }
+  .ganttMonthRow .ganttSideHead{ background:#eef1f6; }
+  /* ---- DE/SU/PNなど「バーにせず日程だけ入れる」工程の欄（現物の作業票印刷にある、コード＋日付だけの固定ミニ表と同じ考え方）。作業票とリンク中の品番のみ表示 ---- */
+  .ganttDatesHead{ flex:0 0 140px; padding:3px 10px; font-size:10.5px; font-weight:700; color:#5b6b84; display:flex; align-items:center; border-right:1.5px solid #222; position:sticky; left:280px; z-index:3; background:#f7f9fc; }
+  .ganttMonthRow .ganttDatesHead{ background:#eef1f6; }
+  .monthCell{ font-size:11.5px; font-weight:700; color:#5b6b84; text-align:center; padding:4px 0; border-right:1.5px solid #8592a6; }
+  .ganttDayCell{ width:var(--day-w); flex:0 0 var(--day-w); text-align:center; font-size:11.5px; color:#8592a6; padding:7px 0; }
+  .ganttDayCell.sat{ color:#2563eb; }
+  .ganttDayCell.sun{ color:#dc2626; }
+  .ganttDayCell.today{ background:#173a68; color:#fff; font-weight:700; border-radius:3px; }
+
+  .ganttPartGroup{ display:flex; border-bottom:2px solid #e6eaf1; }
+  .ganttPartGroup:nth-child(even){ background:#fbfcfe; }
+  .ganttSideCell{ flex:0 0 280px; padding:4px 14px; border-right:1.5px solid #222; display:flex; flex-direction:column; justify-content:center; position:sticky; left:0; z-index:2; background:#fff; box-shadow:2px 0 4px -2px rgba(20,35,70,.15); }
+  .ganttPartGroup:nth-child(even) .ganttSideCell{ background:#fbfcfe; }
+  .ganttSideCell .pNo{ font-size:11px; font-weight:800; color:#e67e22; white-space:pre-line; line-height:1.25; }
+  .ganttSideCell .pName{ font-size:12.5px; font-weight:700; color:#1a2233; white-space:pre-line; line-height:1.2; margin-top:1px; }
+  .ganttSideCell .pQty{ font-size:11px; color:#7a879c; margin-top:1px; }
+  .ganttSideCell .pPrefix{ font-size:10px; color:#a4adbc; margin-top:1px; line-height:1.25; }
+  .ganttDatesCell{
+    flex:0 0 140px; padding:4px 10px; border-right:1.5px solid #222; display:flex; flex-direction:column;
+    justify-content:center; gap:2px; position:sticky; left:280px; z-index:2; background:#fff;
+    box-shadow:2px 0 4px -2px rgba(20,35,70,.15);
+  }
+  .ganttPartGroup:nth-child(even) .ganttDatesCell{ background:#fbfcfe; }
+  .ganttDatesCell .dateTagRow{ display:flex; align-items:center; gap:5px; font-size:10.5px; }
+  .ganttDatesCell .dateTagCode{ font-weight:700; color:#5b6b84; flex:0 0 auto; }
+  .ganttDatesCell .dateTagInput{
+    flex:1 1 auto; min-width:0; border:none; border-bottom:1px dashed #c7cfdc; background:transparent;
+    font-family:inherit; font-size:10px; color:#1a2233; padding:0;
+  }
+  .ganttDatesCell .dateTagInput:focus{ outline:none; border-bottom-color:#173a68; background:#f4f8ff; }
+  .ganttDatesCell .dateTagEmpty{ color:#c7cfdc; font-size:10px; }
+  .rowCountCtrl{ display:flex; align-items:center; gap:5px; margin-top:2px; }
+  .rowCountCtrl .rowBtn{
+    width:15px; height:15px; border:1.3px solid #dfe4ec; background:#fff; color:#5b6b84; border-radius:4px;
+    font-size:10px; font-weight:700; line-height:1; cursor:pointer; font-family:inherit; padding:0;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .rowCountCtrl .rowBtn:hover{ background:#f4f6fa; border-color:#173a68; color:#173a68; }
+  .rowCountCtrl .rowCountLabel{ font-size:9.5px; color:#a4adbc; }
+
+  .ganttRows{ display:flex; flex-direction:column; align-self:stretch; }
+  .ganttRow{ display:flex; align-items:stretch; flex:1 1 18px; min-height:18px; border-bottom:1px solid #f3f5f9; }
+  .ganttRow:last-child{ border-bottom:none; }
+
+  .track{
+    position:relative; flex:0 0 auto; height:100%; cursor:crosshair; user-select:none;
+  }
+  .track .bar{
+    position:absolute; top:2px; bottom:2px; border-radius:0; cursor:grab; box-sizing:border-box;
+    border:1px solid rgba(255,255,255,.65);
+    box-shadow:0 1px 3px rgba(20,35,70,.25); display:flex; align-items:center; overflow:visible;
+  }
+  .track .bar:active{ cursor:grabbing; }
+  .track .bar:hover{ z-index:2; }
+  .track .bar.conflict{ outline:2px solid #f5c518; outline-offset:-2px; z-index:1; }
+  /* バーが狭くて文字が入りきらない時は、バーの外にはみ出して全文表示する。
+     背景（バー色 or 白いページ）どちらの上に乗っても読めるよう、ラベル自体に同じ色のチップ背景を付ける（JS側でbackgroundを指定） */
+  .track .bar .barLabel{
+    font-size:9.5px; color:#fff; font-weight:700; padding:0 4px; white-space:nowrap;
+    pointer-events:none; text-shadow:0 1px 1px rgba(0,0,0,.25); border-radius:3px; box-shadow:0 1px 2px rgba(20,35,70,.3);
+  }
+  .track .bar .handle{ position:absolute; top:0; bottom:0; width:8px; cursor:ew-resize; }
+  .track .bar .handle.left{ left:-2px; }
+  .track .bar .handle.right{ right:-2px; }
+
+  /* 計画確定中：バーを半透明にして「今は動かせない」ことを見た目でも分かるようにする */
+  .ganttInner.confirmedMode .track{ cursor:default; }
+  .ganttInner.confirmedMode .bar{ opacity:.5; cursor:default; }
+  .ganttInner.confirmedMode .bar:active{ cursor:default; }
+  .ganttInner.confirmedMode .bar .handle{ display:none; }
+
+  .footNote{ font-size:12.5px; color:#a4adbc; text-align:center; margin-top:20px; line-height:1.7; }
+
+  /* ---- バーの右クリックメニュー（誤ってバー上の×を押しがちだったのを廃止し、右クリックで編集／削除を選ぶ方式に変更） ---- */
+  .barCtxMenu{
+    position:fixed; z-index:600; background:#fff; border:1px solid #e6eaf1; border-radius:8px;
+    box-shadow:0 8px 28px rgba(20,35,70,.28); padding:6px; display:none; min-width:140px;
+  }
+  .barCtxMenu.open{ display:block; }
+  .barCtxMenu button{
+    display:block; width:100%; text-align:left; background:none; border:none; padding:8px 10px;
+    font-size:12.5px; font-family:inherit; color:#3a4a63; border-radius:6px; cursor:pointer;
+  }
+  .barCtxMenu button:hover{ background:#eef3fa; }
+  .barCtxMenu button.danger{ color:#c0392b; }
+  .barCtxMenu button:disabled{ color:#c7cfdc; cursor:not-allowed; }
+  .barCtxMenu button:disabled:hover{ background:none; }
+
+  /* ---- 自由配置・自由リサイズのメモ（吹き出し）。日付や工程には紐付かず、ガント表の好きな位置に置ける付箋 ---- */
+  .addMemoBtn{
+    border:none; background:#173a68; color:#fff; font-size:12.5px; font-weight:700; padding:8px 14px;
+    border-radius:8px; cursor:pointer; font-family:inherit;
+  }
+  .addMemoBtn:hover{ filter:brightness(1.15); }
+  .printBtn{
+    border:1.5px solid #dfe4ec; background:#fff; color:#5b6b84; font-size:12.5px; font-weight:700; padding:7px 14px;
+    border-radius:8px; cursor:pointer; font-family:inherit;
+  }
+  .printBtn:hover{ border-color:#173a68; color:#173a68; }
+  .memoNote{
+    position:absolute; z-index:50; background:#fff8d6; border:2.5px solid #e8d488; border-radius:9px 9px 9px 2px;
+    box-shadow:0 3px 10px rgba(20,35,70,.18); display:flex; flex-direction:column; min-width:90px; min-height:56px;
+  }
+  /* ---- メモの位置を指し示す先端（矢印）。根本はメモ本体の左下角付近に固定、先端（矢じり）はドラッグして伸縮・向き変更できる ----
+  　　（NC日程表のメモと同じ仕組み・同じ配色で統一してある） ---- */
+  .memoTailLine{
+    position:absolute; z-index:49; height:2.5px; background:#d8b24a; transform-origin:0 50%; pointer-events:none; border-radius:2px;
+  }
+  .memoTailHandle{
+    position:absolute; z-index:51; width:20px; height:20px; margin:-10px 0 0 -10px; cursor:move;
+  }
+  .memoTailHandle .tailArrow{
+    position:absolute; left:1px; top:5px; width:0; height:0; transform-origin:9px 5px;
+    border-top:5px solid transparent; border-bottom:5px solid transparent; border-left:9px solid #d8b24a;
+  }
+  .memoTailHandle:hover .tailArrow{ border-left-color:#a8863f; }
+  .memoNoteHandle{
+    flex:0 0 auto; height:14px; cursor:move; display:flex; align-items:center; justify-content:center;
+    color:#c9b46a; font-size:9px; letter-spacing:2px; user-select:none; border-radius:9px 9px 0 0;
+  }
+  .memoNoteHandle:hover{ background:rgba(0,0,0,.05); }
+  .memoNoteBody{
+    flex:1 1 auto; width:100%; border:none; background:transparent; resize:none; font-family:inherit;
+    font-size:12.5px; color:#5c4a1a; padding:0 8px 8px; box-sizing:border-box; line-height:1.5; outline:none;
+  }
+  .memoNoteResize{
+    position:absolute; right:1px; bottom:1px; width:14px; height:14px; cursor:nwse-resize;
+  }
+  .memoNoteResize::after{
+    content:''; position:absolute; right:3px; bottom:3px; width:7px; height:7px;
+    border-right:2px solid #d8c072; border-bottom:2px solid #d8c072;
+  }
+
+  /* ---- 直前の1操作だけ元に戻せるトースト通知（バー削除のやり直しに使う。ページを開いている間だけ有効） ---- */
+  .undoToast{
+    position:fixed; left:50%; bottom:24px; transform:translateX(-50%); z-index:9999;
+    background:#1a2233; color:#fff; border-radius:10px; padding:11px 16px; font-size:13px;
+    align-items:center; gap:14px; box-shadow:0 8px 28px rgba(0,0,0,.28); display:none;
+  }
+  .undoToast.show{ display:flex; }
+  .undoToast button{
+    border:none; background:#2c72c7; color:#fff; font-weight:700; font-size:12.5px; padding:6px 12px;
+    border-radius:6px; cursor:pointer; font-family:inherit; flex:0 0 auto;
+  }
+  .undoToast button:hover{ filter:brightness(1.1); }
+
+  .labelPicker{
+    position:fixed; z-index:500; background:#fff; border-radius:10px; box-shadow:0 8px 28px rgba(20,35,70,.28);
+    padding:12px; width:300px; display:none; border:1px solid #e6eaf1;
+  }
+  .labelPicker.open{ display:block; }
+  .labelPicker input[type=text]{
+    width:100%; box-sizing:border-box; border:1.5px solid #dfe4ec; border-radius:7px; padding:8px 10px;
+    font-size:14px; font-family:inherit; margin-bottom:9px;
+  }
+  .labelPicker input[type=text]:focus{ outline:none; border-color:#173a68; }
+  .lpList{ display:flex; flex-direction:column; gap:4px; max-height:230px; overflow-y:auto; overscroll-behavior:contain; }
+  .lpItem{
+    display:flex; align-items:center; gap:9px; border:1.5px solid transparent; border-radius:7px;
+    padding:7px 10px; font-size:13px; font-weight:700; color:#2c3a53; background:#f4f6fa;
+    cursor:pointer; font-family:inherit; width:100%; text-align:left; box-sizing:border-box;
+  }
+  .lpItem:hover{ background:#e9edf4; border-color:#dfe4ec; }
+  .lpItemSwatch{ width:14px; height:14px; border-radius:4px; flex:0 0 auto; }
+  .lpFoot{ display:flex; justify-content:space-between; align-items:center; margin-top:10px; gap:8px; }
+  .lpFootLeft{ display:flex; gap:6px; }
+  .lpFoot button{
+    border:none; border-radius:7px; padding:8px 13px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit;
+  }
+  .lpApply{ background:#173a68; color:#fff; }
+  .lpClear{ background:#f4f6fa; color:#c0392b; }
+  .lpCancel{ background:#f4f6fa; color:#5b6b84; }
+
+  /* ---- 印刷（A3）：画面上の操作用UIを消し、ガント／進捗チェックのスクロール領域を全展開して印刷する ---- */
+  @media print{
+    @page{ size:A3 landscape; margin:10mm; }
+    /* ブラウザの「背景のグラフィック」設定に関わらず、バーの色などの背景色をそのまま印刷する */
+    *{ -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; color-adjust:exact !important; }
+    body{ background:#fff; }
+    .topbar, .toolRow, .footNote, .undoToast, .legend, .confirmRow{ display:none !important; }
+    .wrap{ max-width:none; padding:0; margin:0; }
+    .orderCard, .checkCard, .ganttCard{ box-shadow:none !important; border:1px solid #dfe4ec; }
+    .checkScroll, .ganttScroll, .ganttHeaderScroll{ overflow:visible !important; }
+    .ganttHeaderScroll{ position:static !important; }
+    .ganttSideHead, .ganttDatesHead, .checkSideHead, .ganttSideCell, .ganttDatesCell{
+      position:static !important; left:auto !important; box-shadow:none !important;
+    }
+    .rowCountCtrl{ display:none !important; }
+    .track .bar .handle{ display:none !important; }
+    .memoNoteHandle, .memoNoteResize, .memoTailHandle{ display:none !important; }
+    .ganttDatesCell .dateTagInput{ border:none !important; background:transparent !important; color:#1a2233 !important; }
+  }
+</style>
+<script src="_sakaeSupabaseConfig.js"></script>
+<script src="_sakaeSync.js"></script>
+</head>
+<body>
+
+  <div class="topbar">
+    <a class="backLink" id="backLink" href="作業票_モック.html" title="作業票に戻る">← 作業票へ</a>
+    <span class="brand"><span class="sakae">MIKOSHIYA SEIKI</span><span class="is">-iS</span></span>
+    <span class="sep">｜</span>
+    <span class="pageName" id="pageName">個別日程表（モック：受注1件分・編集可能）</span>
+  </div>
+
+  <div class="wrap">
+
+    <div class="orderCard" id="orderCard">
+      <div>
+        <div class="oMeta">社内№</div>
+        <div class="oNo">35481000-11</div>
+      </div>
+      <div>
+        <div class="oMeta">型式・図番</div>
+        <div class="oModel">MKS(-)</div>
+      </div>
+      <div>
+        <div class="oMeta">客先</div>
+        <div class="oModel">株式会社ミコシヤ</div>
+      </div>
+      <div class="dueBadge">納期：9/18</div>
+    </div>
+
+    <div class="checkCard">
+      <div class="checkCardTitle">進捗チェック欄（担当者×日付でチェック）</div>
+      <div class="checkScroll" id="checkScroll">
+        <div class="checkInner" id="checkInner"></div>
+      </div>
+    </div>
+
+    <div class="confirmRow" id="confirmRow"></div>
+
+    <div class="toolRow">
+      <div class="rangeToggle" id="rangeToggle">
+        表示期間
+        <input type="date" id="viewStartInput">
+        <span class="rangeTilde">～</span>
+        <input type="date" id="viewEndInput">
+        <button type="button" class="rangeResetBtn" id="rangeResetBtn" title="最初の工程ガントバーから1ヶ月分の表示に戻す">初期表示に戻す</button>
+      </div>
+      <div class="monthToggle" id="zoomToggle">
+        <button type="button" id="zoomOutBtn" title="計画表を縮小">－</button>
+        <button type="button" id="zoomResetBtn" title="標準の大きさに戻す">100%</button>
+        <button type="button" id="zoomInBtn" title="計画表を拡大">＋</button>
+      </div>
+      <button type="button" class="addMemoBtn" id="addMemoBtn">＋ メモを追加</button>
+      <button type="button" class="printBtn" id="printBtn" title="A3サイズで印刷します（印刷前に表示期間・ズームを整えてください）">🖨 印刷する（A3）</button>
+      <span style="font-size:12.5px; color:#a4adbc;">土日はグレー表示／バーの右端の位置が作業票の工程日付（終了・納期）になります（ドラッグで移動、右クリックで新規設置・編集・削除）／各日の中央の縦線が午前・午後の区切りです／付箋メモは自由な位置・サイズで配置できます（ハンドルをドラッグで移動、右下でリサイズ、クリックで編集、右クリックで削除）</span>
+    </div>
+
+    <div class="legend" id="legend"></div>
+
+    <div class="ganttCard">
+      <div class="ganttHeaderScroll" id="ganttHeaderScroll">
+        <div class="ganttHeaderInner" id="ganttHeaderInner"></div>
+      </div>
+      <div class="ganttScroll" id="ganttScroll">
+        <div class="ganttInner" id="ganttInner"></div>
+      </div>
+    </div>
+
+    <div class="footNote">
+      元データ：個別日程表（例１）.xlsx「81970PMC №6」シート／実際のセル位置から工程日を再現し、準備／加工／仕上げの3行に集約<br>
+      作業票の「個別日程表を作る」から開いた場合、作業票と工程データを直接共有しています（品番ごと）。バーの中央を動かすと日付が、両端をつまんで伸縮すると日数（作業期間）が、その場で作業票側に反映されます（開いている場合はリアルタイムに）。バーの新規作成・削除は作業票側の工程一覧にもそのまま反映されます。進捗チェックはこのページだけの保存です。<br>
+      ※進捗チェック欄の担当者4名（塩野・鶴山・足立・生管）は現状すべての受注で固定表示です。案件ごとに担当者が変わるかは要確認。
+    </div>
+
+  </div>
+
+  <div class="labelPicker" id="labelPicker">
+    <input type="text" id="lpInput" placeholder="工程名を入力 or 下から選択">
+    <div id="lpGroups"></div>
+    <div class="lpFoot">
+      <div class="lpFootLeft">
+        <button class="lpCancel" id="lpCancel" type="button">キャンセル</button>
+        <button class="lpClear" id="lpClear" type="button">クリア</button>
+      </div>
+      <button class="lpApply" id="lpApply" type="button">決定</button>
+    </div>
+  </div>
+
+  <div class="barCtxMenu" id="barCtxMenu">
+    <button type="button" id="ctxAddBar">バーの設置</button>
+    <button type="button" id="ctxEditBar">編集</button>
+    <button type="button" id="ctxGotoProc">工程の日程表</button>
+    <button type="button" id="ctxCopyBar">バーのコピー</button>
+    <button type="button" id="ctxPasteBar">バーのペースト</button>
+    <button type="button" class="danger" id="ctxDeleteBar">削除</button>
+  </div>
+
+  <div class="barCtxMenu" id="memoCtxMenu">
+    <button type="button" class="danger" id="ctxDeleteMemo">削除</button>
+  </div>
+
+  <div class="undoToast" id="undoToast">
+    <span id="undoToastText"></span>
+    <button type="button" id="undoToastBtn">元に戻す</button>
+  </div>
+
+<script>
+(function(){
+  // ---- 作業票とのリンク：URLでは品番だけを受け取り、実データは作業票と共有のlocalStorageから直接読む ----
+  // これにより作業票の内容を常に最新の状態で参照でき、バーを動かせば作業票の工程日付も直接書き換わる（双方向リンク）
+  const params = new URLSearchParams(location.search);
+  const urlProductNo = (params.get('productNo') || '').trim();
+  function nsKey(base){ return base + (urlProductNo ? ('_' + urlProductNo) : ''); }
+
+  // ---- 「← 作業票へ」は品番を引き継がないと、作業票側で品番なしの共有キーに落ちて別の品番のデータが出てくる不具合があったため、
+  // 必ずこのページの品番をURLに付けて戻す ----
+  const backLinkTopEl = document.getElementById('backLink');
+  if(backLinkTopEl && urlProductNo){
+    backLinkTopEl.href = '作業票_モック.html?productNo=' + encodeURIComponent(urlProductNo);
+  }
+
+  const BUHIN_KEY = urlProductNo ? ('sakaeIS_buhinhyoMock_v1_' + urlProductNo) : null;
+  // 作業票側の古い保存データにid/ampmが無い場合に備えて、こちらでも読み込み時に補完する（作業票と同じロジック）
+  function migrateBuhinState(st){
+    let changed = false;
+    (st.parts||[]).forEach(p=>{
+      (p.processes||[]).forEach(pr=>{
+        if(!pr.id){ pr.id = Math.random().toString(36).slice(2,9); changed = true; }
+        if(!pr.ampm){ pr.ampm = 'AM'; changed = true; }
+      });
+    });
+    return { st, changed };
+  }
+  // ---- 一度だけの移行処理：日数(days)機能を追加した際、初期値が半日(1)や1日分(2)のまま保存されてしまったデータを
+  // 工程記号が読める3コマ（1.5日分）に底上げする。以降にユーザーが意図的に3コマ未満へ縮めた分は対象外（このバージョンより後に付いた値は触らない）。
+  const DAYS_UPGRADE_KEY = 'sakaeIS_daysUpgrade3_v1';
+  function upgradeDaysOnce(){
+    if(localStorage.getItem(DAYS_UPGRADE_KEY)) return;
+    for(let i=0;i<localStorage.length;i++){
+      const k = localStorage.key(i);
+      if(!k || k.indexOf('sakaeIS_buhinhyoMock_v1_')!==0) continue;
+      let bs;
+      try{ bs = JSON.parse(localStorage.getItem(k)); }catch(e){ continue; }
+      if(!bs) continue;
+      let changed = false;
+      (bs.parts||[]).forEach(p=>(p.processes||[]).forEach(pr=>{
+        if(pr.days === 1 || pr.days === 2){ pr.days = 3; changed = true; }
+      }));
+      if(changed) localStorage.setItem(k, JSON.stringify(bs));
+    }
+    localStorage.setItem(DAYS_UPGRADE_KEY, '1');
+  }
+  upgradeDaysOnce();
+
+  function loadBuhinState(){
+    if(!BUHIN_KEY) return null;
+    try{
+      const raw = localStorage.getItem(BUHIN_KEY);
+      if(raw){
+        const { st, changed } = migrateBuhinState(JSON.parse(raw));
+        if(changed) localStorage.setItem(BUHIN_KEY, JSON.stringify(st));
+        return st;
+      }
+    }catch(e){}
+    return null;
+  }
+  function saveBuhinState(){
+    if(!BUHIN_KEY || !buhinState) return;
+    localStorage.setItem(BUHIN_KEY, JSON.stringify(buhinState));
+  }
+  let buhinState = loadBuhinState();
+  const handoff = !!buhinState;
+
+  // ---- 直前の1操作だけ元に戻せる仕組み（バーの削除など）。このページを開いている間だけ有効（保存はしない）。
+  // 新しく別の操作をすると、前の「戻す」は上書きされて消える（複数段階は戻せない）。 ----
+  let lastUndo = null;
+  let undoToastTimer = null;
+  const undoToastEl = document.getElementById('undoToast');
+  const undoToastTextEl = document.getElementById('undoToastText');
+  const undoToastBtn = document.getElementById('undoToastBtn');
+  function showUndo(message, undoFn){
+    lastUndo = { undo: undoFn };
+    undoToastTextEl.textContent = message;
+    undoToastEl.classList.add('show');
+    if(undoToastTimer) clearTimeout(undoToastTimer);
+    undoToastTimer = setTimeout(()=>{ undoToastEl.classList.remove('show'); lastUndo = null; }, 8000);
+  }
+  if(undoToastBtn){
+    undoToastBtn.addEventListener('click', ()=>{
+      if(!lastUndo) return;
+      const fn = lastUndo.undo;
+      lastUndo = null;
+      undoToastEl.classList.remove('show');
+      if(undoToastTimer) clearTimeout(undoToastTimer);
+      fn();
+    });
+  }
+  // Ctrl+Z／Cmd+Zでも同じ「元に戻す」を実行できるようにする（入力欄内では文字の入力取り消しを邪魔しないよう素通りさせる）
+  document.addEventListener('keydown', (e)=>{
+    if((e.key!=='z' && e.key!=='Z') || !(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey) return;
+    const tag = document.activeElement && document.activeElement.tagName;
+    if(tag==='INPUT' || tag==='TEXTAREA') return;
+    if(!lastUndo) return;
+    e.preventDefault();
+    const fn = lastUndo.undo;
+    lastUndo = null;
+    undoToastEl.classList.remove('show');
+    if(undoToastTimer) clearTimeout(undoToastTimer);
+    fn();
+  });
+
+  // ---- 自由配置・自由サイズのメモ（吹き出し）。日付・工程・バーには一切紐付かず、ガント表内の好きな座標に置ける付箋 ----
+  const MEMO_KEY = nsKey('sakaeIS_kobetsuMock_memos_v1');
+  function loadMemos(){
+    try{ const raw = localStorage.getItem(MEMO_KEY); if(raw) return JSON.parse(raw); }catch(e){}
+    return [];
+  }
+  function saveMemos(){ localStorage.setItem(MEMO_KEY, JSON.stringify(memos)); }
+  let memos = loadMemos();
+
+  const VIEW_KEY = nsKey('sakaeIS_kobetsuMock_view_v1');
+  let DAY_W = 30;
+  const ZOOM_KEY = 'sakaeIS_kobetsuMock_zoom_v1';
+  function loadZoom(){
+    const v = Number(localStorage.getItem(ZOOM_KEY));
+    return (v>=14 && v<=52) ? v : 30;
+  }
+  DAY_W = loadZoom();
+
+  function parseDateStr(s){
+    if(!s) return null;
+    const p = String(s).split('-').map(Number);
+    if(p.length!==3 || !p[0] || !p[1] || !p[2]) return null;
+    return new Date(p[0], p[1]-1, p[2]);
+  }
+
+  // ---- 連続カレンダー方式（土日も含む） ----
+  // 作業票から引き継いだ場合：工程日の最も早い日の3日前を表の開始日にする。無ければ受注日、それも無ければ今日。
+  // 引き継ぎが無い場合：元のサンプル（45181-11）の期間をそのまま使う。
+  // 工程日は「開始」ではなく「終了（納期）」を表すため、実際にバーが始まる位置は工程日から日数（コマ数）ぶん手前になる。
+  // 表の開始位置がそれより後ろにならないよう、日数ぶん差し引いた地点を基準に最も早い日を求める。
+  let RANGE_START, TODAY_DATE;
+  if(handoff){
+    let minDate = null;
+    (buhinState.parts||[]).forEach(p=>{
+      (p.processes||[]).forEach(proc=>{
+        const d = parseDateStr(proc.date);
+        if(!d) return;
+        const halfSpan = Math.max(0, (proc.days || 3) - 1);
+        const effective = new Date(d);
+        effective.setDate(effective.getDate() - Math.ceil(halfSpan / 2));
+        if(!minDate || effective < minDate) minDate = effective;
+      });
+    });
+    if(!minDate) minDate = parseDateStr(buhinState.order && buhinState.order.orderDate) || new Date();
+    RANGE_START = new Date(minDate);
+    RANGE_START.setDate(RANGE_START.getDate()-3);
+    TODAY_DATE = new Date();
+  }else{
+    RANGE_START = new Date(2026,6,1); // 2026/7/1
+    TODAY_DATE = new Date(2026,6,15);
+  }
+  function idxForDate(date){ return Math.round((date - RANGE_START)/86400000) + 1; }
+  function dateForIdx(idx){ const d = new Date(RANGE_START); d.setDate(RANGE_START.getDate() + (idx-1)); return d; }
+  const TODAY_IDX = idxForDate(TODAY_DATE);
+  // ---- バーの配置は「日」ではなく「午前／午後」の半日単位で扱う ----
+  // ヘッダーの日付表示（ganttDayCell等）は従来どおり日単位のまま。バーの位置・幅の計算だけが半日単位になる。
+  // 半日idx = (日idx-1)*2 + (午前なら1／午後なら2)。日idx=1の午前が半日idx=1、午後が2、日idx=2の午前が3…と続く。
+  function halfIdxForDate(date, isPM){ return (idxForDate(date)-1)*2 + (isPM?2:1); }
+  function dateForHalfIdx(hIdx){ const dayIdx = Math.floor((hIdx-1)/2)+1; return { date: dateForIdx(dayIdx), isPM: (hIdx-1)%2===1 }; }
+  // 実データ（PARTS）は7月の「日」で記述されているため、RANGE_STARTが7/1である限り day === 日idx
+  // 作業票からの引き継ぎデータは実際の日idxを直接dayとして渡すため、このProxyで午前開始の半日idxに変換してそのまま使える
+  const DAY_TO_IDX = new Proxy({}, { get:(_,d)=> (Number(d)-1)*2+1 });
+
+  // ---- 表示期間（1～3ヶ月の固定プリセットではなく、任意の開始日～終了日を選べるようにする） ----
+  // 初期表示は受注連絡書の「受注日～納期」に合わせる。どちらか無い・納期が受注日より前など不正な場合は、
+  // 従来通り「最初の工程ガントバー」に合わせたRANGE_STARTから1ヶ月分にフォールバックする。
+  function fmtDateForInput(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  function defaultViewStart(){
+    if(handoff){
+      const d = parseDateStr(buhinState.order && buhinState.order.orderDate);
+      if(d) return d;
+    }
+    return new Date(RANGE_START);
+  }
+  function defaultViewEnd(){
+    if(handoff){
+      const s = parseDateStr(buhinState.order && buhinState.order.orderDate);
+      const e = parseDateStr(buhinState.order && buhinState.order.dueDate);
+      if(s && e && e >= s) return e;
+    }
+    const d = new Date(defaultViewStart());
+    d.setMonth(d.getMonth()+1);
+    d.setDate(d.getDate()-1);
+    return d;
+  }
+  function loadView(){
+    try{
+      const raw = localStorage.getItem(VIEW_KEY);
+      if(raw){
+        const v = JSON.parse(raw);
+        const s = parseDateStr(v.start), e = parseDateStr(v.end);
+        if(s && e && e>=s) return { start:s, end:e };
+      }
+    }catch(e){}
+    return { start: defaultViewStart(), end: defaultViewEnd() };
+  }
+  function saveView(){ localStorage.setItem(VIEW_KEY, JSON.stringify({ start: fmtDateForInput(viewStart), end: fmtDateForInput(viewEnd) })); }
+  let { start: viewStart, end: viewEnd } = loadView();
+  function viewStartIdx(){ return idxForDate(viewStart); }
+  function viewStartHalf(){ return (viewStartIdx()-1)*2 + 1; }
+  function currentUnitCount(){
+    return Math.max(1, Math.round((viewEnd - viewStart)/86400000) + 1);
+  }
+  // 表示期間内を暦月ごとに区切って月ラベルを出す（月の途中から始まっても・終わっても正しい日数になる）
+  function getMonthSegments(){
+    const segs = [];
+    let cur = new Date(viewStart);
+    while(cur <= viewEnd){
+      const y = cur.getFullYear(), mo = cur.getMonth();
+      const monthEnd = new Date(y, mo+1, 0);
+      const segEnd = monthEnd < viewEnd ? monthEnd : viewEnd;
+      const days = Math.round((segEnd - cur)/86400000) + 1;
+      segs.push({ label:(mo+1)+'月', days });
+      cur = new Date(segEnd);
+      cur.setDate(cur.getDate()+1);
+    }
+    return segs;
+  }
+
+  // 作業票から引き継いだ場合：段（レーン）に工程バーをそのまま並べる（全体日程の固定バーは廃止）
+  // 引き継ぎが無い場合（元のサンプル）：従来通り準備／加工／仕上げの3段
+  const ROW_NAMES = handoff ? ['工程'] : ['準備','加工','仕上げ'];
+  const PHASE_MAP = {
+    'DE':0,'SU':0,'PN':0,'支給材':0,'在庫材':0,'外注-アダチ':0,'完成品在庫':0,
+    'LA':1,'MI':1,'NC':1,'NC1〜3':1,'HET':1,'GS':1,'EW':1,'前板':1,'後板':1,
+    'FIN':2,'FIN1':2,'FIN2':2,'3D':2,'合せ有':2,'ダミー有':2,'SA-FIN':2,'WEL-FIN':2
+  };
+  function phaseOf(label){ return PHASE_MAP.hasOwnProperty(label) ? PHASE_MAP[label] : 1; }
+
+  // ---- 担当コード別カラー ----
+  const CODE_COLORS = {
+    'NC':'#2563eb', 'NC1〜3':'#2563eb', 'NCM':'#1d4ed8',
+    'LA':'#7c3aed',
+    'MI':'#0d9488',
+    'JG':'#ea580c',
+    'EW':'#be185d', '前板':'#be185d', '後板':'#9d174d',
+    'OMI':'#16a34a', 'OGS':'#65a30d', 'GS':'#65a30d',
+    'GC':'#ca8a04',
+    'EM':'#0891b2',
+    'DR':'#9333ea',
+    'WEL':'#c2410c', 'WEL-FIN':'#c2410c',
+    'FIN':'#dc2626', 'FIN1':'#dc2626', 'FIN2':'#b91c1c', 'SA-FIN':'#dc2626',
+    '熱処理':'#92400e', 'HET':'#92400e',
+    'ｶﾅｯｸ':'#4b5563',
+    '外注':'#8592a6', '外注-アダチ':'#8592a6',
+    '3D':'#0ea5e9',
+    '納品':'#e11d48',
+    'DE':'#94a3b8', 'SU':'#a1a1aa', 'PN':'#71717a'
+  };
+  const DEFAULT_BAR_COLOR = '#173a68';
+  const LEGEND_CODES = ['NC','LA','MI','JG','EW','GS','GC','EM','DR','WEL','NCM','FIN','熱処理','外注','3D','納品'];
+  // バーに置けるのは工程コードのみ（支給材の手配状況や合せ有／ダミー有などのフラグ・注記は工程ではないため対象外）
+  const NON_PROCESS_MARKERS = ['支給材','在庫材','完成品在庫','合せ有','ダミー有'];
+  function isProcessToken(tok){
+    return !NON_PROCESS_MARKERS.some(m => tok.indexOf(m) !== -1);
+  }
+
+  // ---- バー作成・編集時のクイック選択肢（作業票の工程一覧と揃えてある。それ以外の工程名は上の入力欄から自由入力できる） ----
+  const LABEL_PRESETS = [
+    { group:'工程', items:['NC','DE','SU','OMI','OGS','GS','FIN','NCM','PN','3D'] },
+  ];
+
+  // ---- 一覧に無いコードにも毎回違う色を自動で割り当てる（作業票と共通のlocalStorageキーで色を揃える） ----
+  const CUSTOM_COLOR_KEY = 'sakaeIS_customCodeColors_v1';
+  function loadCustomColors(){
+    try{ const raw = localStorage.getItem(CUSTOM_COLOR_KEY); if(raw) return JSON.parse(raw); }catch(e){}
+    return {};
+  }
+  function saveCustomColors(map){ localStorage.setItem(CUSTOM_COLOR_KEY, JSON.stringify(map)); }
+  let customCodeColors = loadCustomColors();
+  function colorForCustomCode(code){
+    if(customCodeColors[code]) return customCodeColors[code];
+    const idx = Object.keys(customCodeColors).length;
+    const hue = Math.round((idx * 137.508) % 360);
+    const color = 'hsl('+hue+',65%,42%)';
+    customCodeColors[code] = color;
+    saveCustomColors(customCodeColors);
+    return color;
+  }
+  function getBarColor(label){
+    if(!label) return DEFAULT_BAR_COLOR;
+    const segs = label.split('・');
+    for(const s of segs){ if(CODE_COLORS[s]) return CODE_COLORS[s]; }
+    for(const key in CODE_COLORS){ if(label.indexOf(key)!==-1) return CODE_COLORS[key]; }
+    // バーのラベルは「コード＋備考」（例：NC1 ウラ）なので、空白より前のコード部分だけで色を判定する
+    const codePart = label.split(/\s/)[0];
+    if(!codePart) return DEFAULT_BAR_COLOR;
+    return colorForCustomCode(codePart);
+  }
+  // NCのバーは実際にどの機械に乗るかをNC日程表（機械別ガント）側で管理しているため、右クリック／ダブルクリックでそちらに飛べるようにする
+  // 「NC1ウラ-NC2オモテ-NC3」「NC4オモテ2」など、実データ上NCの表記はかなり自由に書かれているため、
+  // 工程名の頭2文字が「NC」であれば形式を問わずNC日程表へのリンク対象とする。
+  // 「NCM」は別コードなので誤って一致しないよう、これだけは除外する。
+  function isNCBar(label){
+    if(!label) return false;
+    if(label.indexOf('NCM') === 0) return false;
+    return label.indexOf('NC') === 0;
+  }
+
+  // ---- 各工程の日程表（工程ごとの汎用日程表フォルダ）へのダブルクリック遷移 ----
+  // NC1〜NC5以外の工程コードも、各工程の日程表フォルダの該当ファイルに飛べるようにする
+  const PROC_GANTT_FILES = {
+    'DE':'DE日程表.html', 'SU':'SU日程表.html', '支給':'支給日程表.html', '外注':'外注日程表.html',
+    'OMI':'OMI日程表.html', 'OGS':'OGS日程表.html', 'GS':'GS日程表.html', 'LA':'LA日程表.html',
+    'MI':'MI日程表.html', 'JG':'JG日程表.html', 'EW':'EW日程表.html', 'GC':'GC日程表.html',
+    'EM':'EM日程表.html', 'DR':'DR日程表.html', 'WEL':'WEL日程表.html', '3D':'3D日程表.html',
+    'FIN':'FIN日程表.html', 'NCM':'NCM日程表.html', '熱処理':'熱処理日程表.html',
+    'ｶﾅｯｸ':'ｶﾅｯｸ日程表.html', 'ﾆｭｰｶﾅｯｸ':'ﾆｭｰｶﾅｯｸ日程表.html', 'PN':'PN日程表.html', '納品':'納品日程表.html'
+  };
+  function matchProcGantt(label){
+    if(!label) return null;
+    if(isNCBar(label)) return { code:'NC', file:'NC日程表_モック.html' };
+    const segs = label.split('・');
+    for(const s of segs){ if(PROC_GANTT_FILES[s]) return { code:s, file:'各工程の日程表/'+PROC_GANTT_FILES[s] }; }
+    for(const key in PROC_GANTT_FILES){ if(label.indexOf(key)!==-1) return { code:key, file:'各工程の日程表/'+PROC_GANTT_FILES[key] }; }
+    return null;
+  }
+
+  const DEMO_PARTS = [
+    { no:'001', name:'下型本体', qty:'1', prefix:['DE','支給材 7/2','PN'],
+      events:[[8,'NC1〜3'],[20,'3D'],[20,'FIN']], flag:[30,'合せ有'] },
+    { no:'002', name:'上型本体', qty:'1', prefix:['DE','支給材 7/2','PN'],
+      events:[[9,'NC1〜3'],[20,'3D'],[21,'FIN']], flag:[30,'合せ有'] },
+    { no:'003-005,010', name:'押出ピンブッシュ\n(E3,E4,E8,E12)', qty:'各2 計8', prefix:['DE','SU'],
+      events:[[7,'LA'],[14,'MI'],[17,'FIN'],[20,'HET']], flag:[30,'合せ有'] },
+    { no:'006-009', name:'押出ピンブッシュ\n(E3-1,2,E8-1,2)', qty:'各1 計4', prefix:['DE','SU'],
+      events:[[7,'LA'],[14,'PN'],[14,'NC'],[17,'FIN'],[20,'HET']], flag:[30,'合せ有'] },
+    { no:'011,012', name:'下型/上型\n押出ストッパー1', qty:'各7 計14', prefix:['DE','SU'],
+      events:[[10,'LA'],[21,'FIN']] },
+    { no:'013,014', name:'下型ピンブッシュ\n上型ベント穴ブッシュ', qty:'各1 計3', prefix:['DE','SU','在庫材'],
+      events:[[7,'SA-FIN']] },
+    { no:'016-019', name:'下型/上型\nカオウール押え板A,B', qty:'各1 計4', prefix:['DE'],
+      events:[[9,'外注-アダチ'],[21,'FIN']] },
+    { no:'020-023', name:'下型/上型\n押出板前板・後板', qty:'各1 計4', prefix:['DE','SU','PN'],
+      events:[[6,'後板'],[7,'前板'],[8,'NC'],[21,'FIN']], flag:[30,'合せ有'] },
+    { no:'024,025', name:'鋳抜き入子RE,FR', qty:'各4 計8', prefix:['DE','SU','在庫材'],
+      events:[[8,'LA'],[14,'MI'],[17,'FIN1'],[20,'HET'],[23,'FIN2']] },
+    { no:'026', name:'鋳抜きピン', qty:'4', prefix:['DE','SU','在庫材'],
+      events:[[8,'LA'],[15,'MI'],[17,'FIN1'],[20,'HET'],[23,'FIN2']] },
+    { no:'027-030,063,064', name:'下型/上型\n押出ピン・リターンピン', qty:'計48／各4計8', prefix:['DE','SU'],
+      events:[[10,'GS'],[10,'GS'],[15,'MI'],[21,'FIN']], flag:[30,'合せ有'] },
+    { no:'031', name:'ガイドキー', qty:'3', prefix:['DE 済','SU 済'],
+      events:[[7,'MI'],[15,'FIN1'],[16,'HET'],[21,'GS']], flag:[30,'ダミー有'] },
+    { no:'032', name:'ガイドキーブロック', qty:'3', prefix:['DE 済','SU 済'],
+      events:[[7,'MI'],[15,'FIN1'],[16,'HET'],[21,'GS']], flag:[30,'ダミー有'] },
+    { no:'033', name:'下型/上型\n仕切板', qty:'各1 計2', prefix:['DE 済','完成品在庫'],
+      events:[[7,'EW'],[20,'WEL-FIN']] },
+    { no:'034', name:'スライド入子', qty:'4', prefix:['DE','SU 済','PN'],
+      events:[[9,'NC'],[21,'FIN']] },
+    { no:'一体', name:'引抜きブロック本体', qty:'4', prefix:['SU','SU'],
+      events:[[15,'NC']] },
+    { no:'（連番なし）', name:'引抜きブロックガイド', qty:'4', prefix:['SU','SU'],
+      events:[[15,'NC']] },
+  ];
+
+  // ---- 作業票のデータ（共有state）を、この画面のPARTS形式（no/name/qty/dateTags/events）にライブ変換 ----
+  // 準備工程（DE/SU/PNなど phase0）は日付があっても常にバーにしない。現物の作業票印刷（＝個別日程表の実物）でも
+  // DE/SU/PNはバーではなく「コード＋日付だけ」の固定ミニ表になっているため、それに合わせてdateTags（構造化データ）として持つ。
+  // machineSpan/finishSpanの日付範囲計算にphase0の早い日付が混ざると、加工バーが異常に幅広くなるバグになるため引き続き除外する。
+  // 日付を持つ加工／仕上げ工程（phase1/2）のみeventsに入れる。各工程のidを保持し、バーと作業票側の工程を1対1で対応させる。
+  function convertBuhinParts(bs){
+    return (bs.parts||[]).map(p=>{
+      const events = [];
+      const dateTags = [];
+      (p.processes||[]).forEach(proc=>{
+        const d = parseDateStr(proc.date);
+        const isPrep = phaseOf(proc.code) === 0;
+        if(!isPrep && d){
+          // バーの表示・編集欄には「工程コード＋備考」をまとめて出す（例：NC1＋ウラ→「NC1 ウラ」）。
+          // 同じ設備でも加工方法（ウラ／オモテ等）が違うパターンを備考側で区別できるようにするため。
+          const dispCode = proc.code + (proc.note ? ' '+proc.note : '');
+          events.push({ procId: proc.id, code: dispCode, half: halfIdxForDate(d, proc.ampm==='PM'), days: proc.days||3 });
+        }else{
+          dateTags.push({ procId: proc.id, code: proc.code, date: proc.date||'', ampm: proc.ampm||'AM', note: proc.note||'' });
+        }
+      });
+      return { partId: p.id, no: p.subNo || '', name: p.name || '', qty: (p.qty!=null ? String(p.qty) : ''), dateTags, events };
+    });
+  }
+  let PARTS = handoff ? convertBuhinParts(buhinState) : DEMO_PARTS;
+
+  // ---- dateTags（DE/SU/PNなど）を「コード：日付」のミニ表として組み立てる（現物の作業票印刷にある固定ボックスと同じ見た目） ----
+  function buildDateTagsHtml(part){
+    if(!part.dateTags || !part.dateTags.length){
+      return '<div class="dateTagEmpty">－</div>';
+    }
+    return part.dateTags.map(t=>{
+      const titleParts = [];
+      if(t.note) titleParts.push(t.note);
+      const titleAttr = titleParts.length ? ' title="'+esc(titleParts.join(' '))+'"' : '';
+      return '<div class="dateTagRow"'+titleAttr+'>'
+        + '<span class="dateTagCode">'+esc(t.code)+'</span>'
+        + '<input type="date" class="dateTagInput" data-role="dateTagInput" data-procid="'+esc(t.procId)+'" value="'+esc(t.date||'')+'">'
+        + '</div>';
+    }).join('');
+  }
+
+  function esc(s){
+    return (s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  function uid(){ return Math.random().toString(36).slice(2,9); }
+
+  // メモに矢印の先端座標（tailX/tailY）が無ければ、左下から斜め下に少し伸びた位置をデフォルトとして与える
+  // （古いデータ／前バージョンで先端の概念が無いまま保存されたメモにも対応するため。NC日程表のメモと同じ仕組み） ----
+  function ensureMemoTail(memo){
+    if(typeof memo.tailX === 'number' && typeof memo.tailY === 'number') return;
+    memo.tailX = memo.x - 36;
+    memo.tailY = memo.y + memo.h + 44;
+  }
+  // 矢印の根本（メモ本体の左下角）と先端（memo.tailX/tailY）から、線・矢じりの位置と角度を計算する
+  // 根本は角ちょうどではなく、少し本体の中心側に差し込む形にしておく（線はメモ本体より奥のz-indexなので、
+  // その分は本体の下に隠れて見えなくなり、継ぎ目に隙間が出ない）
+  const TAIL_ROOT_INSET_X = 12;
+  const TAIL_ROOT_INSET_Y = 28;
+  function memoTailGeom(memo){
+    const ax = memo.x + TAIL_ROOT_INSET_X, ay = memo.y + memo.h - TAIL_ROOT_INSET_Y;
+    const bx = memo.tailX, by = memo.tailY;
+    const dx = bx-ax, dy = by-ay;
+    const length = Math.max(1, Math.sqrt(dx*dx+dy*dy));
+    const angle = Math.atan2(dy, dx) * 180/Math.PI;
+    return { ax, ay, bx, by, length, angle };
+  }
+  // ドラッグ中に毎回renderMemoLayer()を呼ばずに済むよう、線・矢じりのDOMだけをその場で更新する
+  function updateMemoTailVisual(memo){
+    const g = memoTailGeom(memo);
+    const lineEl = ganttInner.querySelector('.memoTailLine[data-memo-id="'+memo.id+'"]');
+    const handleEl = ganttInner.querySelector('.memoTailHandle[data-memo-id="'+memo.id+'"]');
+    if(lineEl){
+      lineEl.style.left = g.ax+'px';
+      lineEl.style.top = g.ay+'px';
+      lineEl.style.width = g.length+'px';
+      lineEl.style.transform = 'rotate('+g.angle+'deg)';
+    }
+    if(handleEl){
+      handleEl.style.left = g.bx+'px';
+      handleEl.style.top = g.by+'px';
+      const arrowEl = handleEl.querySelector('.tailArrow');
+      if(arrowEl) arrowEl.style.transform = 'rotate('+g.angle+'deg)';
+    }
+  }
+
+  // ---- 自由配置メモ（吹き出し）の描画。render()のたびにganttInnerへ子要素として追加し直す。
+  // ドラッグ中もこの関数を呼び直して再描画するため、まず既存の要素を消してから作り直す ----
+  function renderMemoLayer(){
+    ganttInner.querySelectorAll('.memoNote, .memoTailLine, .memoTailHandle').forEach(el=> el.remove());
+    memos.forEach(memo=>{
+      ensureMemoTail(memo);
+      const el = document.createElement('div');
+      el.className = 'memoNote';
+      el.dataset.memoId = memo.id;
+      el.style.left = memo.x+'px';
+      el.style.top = memo.y+'px';
+      el.style.width = memo.w+'px';
+      el.style.height = memo.h+'px';
+      el.innerHTML = '<div class="memoNoteHandle" data-role="memoHandle" data-memo-id="'+esc(memo.id)+'" title="ドラッグで移動">・・・</div>'
+        + '<textarea class="memoNoteBody" data-role="memoBody" placeholder="メモを入力">'+esc(memo.text||'')+'</textarea>'
+        + '<div class="memoNoteResize" data-role="memoResize" data-memo-id="'+esc(memo.id)+'" title="ドラッグでサイズ変更"></div>';
+      ganttInner.appendChild(el);
+
+      const lineEl = document.createElement('div');
+      lineEl.className = 'memoTailLine';
+      lineEl.dataset.memoId = memo.id;
+      ganttInner.appendChild(lineEl);
+
+      const handleEl = document.createElement('div');
+      handleEl.className = 'memoTailHandle';
+      handleEl.dataset.memoId = memo.id;
+      handleEl.dataset.role = 'memoTailHandle';
+      handleEl.title = 'ドラッグで先端の位置・長さを変更';
+      handleEl.innerHTML = '<div class="tailArrow"></div>';
+      ganttInner.appendChild(handleEl);
+
+      updateMemoTailVisual(memo);
+    });
+  }
+
+  // ---- 3行（準備/加工/仕上げ）へ実データを集約してバーの初期位置を計算 ----
+  function computeRowSpans(part){
+    const byPhase = { 1:[], 2:[] };
+    part.events.forEach(([day,label])=>{
+      const idx = DAY_TO_IDX[day];
+      if(!idx) return;
+      byPhase[phaseOf(label)===0?1:phaseOf(label)].push(idx);
+    });
+    if(part.flag){
+      const idx = DAY_TO_IDX[part.flag[0]];
+      if(idx) byPhase[2].push(idx);
+    }
+    const machineIdx = byPhase[1];
+    const finishIdx = byPhase[2];
+    const firstDated = Math.min.apply(null, [].concat(machineIdx, finishIdx).length ? [].concat(machineIdx, finishIdx) : [currentUnitCount()]);
+
+    const prepEnd = Math.max(1, firstDated - 1);
+    const prepSpan = [1, Math.max(1, Math.min(prepEnd, 6))]; // 6半日＝3日分の幅を上限にする
+
+    const machineSpan = machineIdx.length
+      ? [Math.min.apply(null, machineIdx), Math.max.apply(null, machineIdx)]
+      : [prepSpan[1]+1, prepSpan[1]+1];
+
+    const finishSpan = finishIdx.length
+      ? [Math.min.apply(null, finishIdx), Math.max.apply(null, finishIdx)]
+      : [machineSpan[1]+1, machineSpan[1]+1];
+
+    return [
+      { span: prepSpan, label: part.prefix.filter(isProcessToken).join('・') },
+      { span: machineSpan, label: part.events.filter(e=>phaseOf(e[1])===1).map(e=>e[1]).filter(isProcessToken).join('・') || '加工' },
+      { span: finishSpan, label: part.events.filter(e=>phaseOf(e[1])===2).map(e=>e[1]).filter(isProcessToken).join('・') || '仕上げ' },
+    ];
+  }
+
+  // ---- 工程の段数（引き継ぎ時のみ）：バーが重なる場合に備えて、部品ごとに手動で段を増減できるようにする（表示上のレイアウトのみ・作業票とは共有しない） ----
+  const ROWCOUNT_KEY = nsKey('sakaeIS_kobetsuMock_rowcounts_v1');
+  function loadRowCounts(){
+    try{
+      const raw = localStorage.getItem(ROWCOUNT_KEY);
+      if(raw) return JSON.parse(raw);
+    }catch(e){}
+    return {};
+  }
+  function saveRowCounts(){ localStorage.setItem(ROWCOUNT_KEY, JSON.stringify(rowCounts)); }
+  let rowCounts = loadRowCounts();
+  // 現場からの要望で、初期表示は1段ではなく3段にする（手動で増減した分はそのままrowCountsに残る）
+  function procRowCount(pIdx){ return rowCounts[pIdx] || 3; }
+  function partRowCount(pIdx){
+    if(!handoff) return ROW_NAMES.length;
+    return procRowCount(pIdx);
+  }
+
+  // ---- 計画の確定：確定するとバーの移動・追加・削除ができなくなる（誤操作防止）。
+  // 段数の増減や付箋メモは見た目・注記だけで日程そのものではないので、確定中でも触れる。 ----
+  const CONFIRM_KEY = nsKey('sakaeIS_kobetsuMock_confirm_v1');
+  function loadConfirm(){
+    try{ const raw = localStorage.getItem(CONFIRM_KEY); if(raw) return JSON.parse(raw); }catch(e){}
+    return null;
+  }
+  function saveConfirm(){
+    if(confirmState) localStorage.setItem(CONFIRM_KEY, JSON.stringify(confirmState));
+    else localStorage.removeItem(CONFIRM_KEY);
+  }
+  let confirmState = loadConfirm(); // null、または { confirmedAt: ISO文字列 }
+  function isConfirmed(){ return !!confirmState; }
+  function checkEditable(){
+    if(isConfirmed()){
+      alert('この案件の計画は確定済みです。編集するには、まず「編集する（確定を解除）」を押してください。');
+      return false;
+    }
+    return true;
+  }
+  function fmtConfirmedAt(iso){
+    const d = new Date(iso);
+    if(isNaN(d)) return '';
+    return d.getFullYear()+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getDate()).padStart(2,'0')
+      + ' ' + String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  }
+  function renderConfirmRow(){
+    const el = document.getElementById('confirmRow');
+    if(!el) return;
+    if(isConfirmed()){
+      el.innerHTML = '<span class="confirmBadge">🔒 計画確定済み（'+esc(fmtConfirmedAt(confirmState.confirmedAt))+'確定）</span>'
+        + '<button type="button" class="confirmUnlockBtn" id="confirmUnlockBtn">編集する（確定を解除）</button>';
+    }else{
+      el.innerHTML = '<button type="button" class="confirmPlanBtn" id="confirmPlanBtn">✅ 計画を確定する</button>'
+        + '<span class="confirmHint">確定すると、バーの移動・追加・削除ができなくなります（誤操作防止。段数の変更やメモは確定中も可能）</span>';
+    }
+  }
+
+  // ---- 工程バーをどの段（レーン）に置くか：これは作業票とは共有しない、この画面だけの表示上の配置なので別キーで保存する ----
+  const LANE_KEY = nsKey('sakaeIS_kobetsuMock_laneassign_v1');
+  function loadLaneAssign(){
+    try{
+      const raw = localStorage.getItem(LANE_KEY);
+      if(raw) return JSON.parse(raw);
+    }catch(e){}
+    return {};
+  }
+  function saveLaneAssign(){ localStorage.setItem(LANE_KEY, JSON.stringify(laneAssign)); }
+  let laneAssign = loadLaneAssign();
+
+  // ---- 非リンク（品番なしで開いた旧サンプル）の時だけ使うバー保存。作業票と共有するモードでは使わない ----
+  const LEGACY_KEY = nsKey('sakaeIS_kobetsuMock_legacybars_v1');
+  function loadLegacyBars(){
+    try{
+      const raw = localStorage.getItem(LEGACY_KEY);
+      if(raw) return JSON.parse(raw);
+    }catch(e){}
+    return null;
+  }
+  function saveLegacyBars(){ localStorage.setItem(LEGACY_KEY, JSON.stringify(barsData)); }
+
+  // ---- バーは常にPARTS（＝作業票の最新データ）から導出する。作業票側のデータが唯一の正なので、バー専用の保存は行わない ----
+  // 工程ごとのバー（バーの右端＝作業票の工程日付・時間帯＝終了/納期）を段（レーン）ごとに並べる
+  function deriveBars(){
+    const data = {};
+    if(handoff){
+      PARTS.forEach((part,pIdx)=>{
+        part.events.forEach(ev=>{
+          const lane = Math.min(laneAssign[ev.procId]||0, Math.max(0, procRowCount(pIdx)-1));
+          const key = pIdx+'_'+lane;
+          data[key] = data[key] || [];
+          // バーの幅＝作業票に保存されている実際の日数（days）。端をつまんで伸縮すると作業票側のdaysが更新される。
+          // 作業票の工程日は「終了（納期）」を表すので、バーの右端をev.halfに合わせ、そこから日数ぶん手前を左端にする。
+          const barEnd = ev.half;
+          const barStart = Math.max(1, barEnd - ((ev.days||3) - 1));
+          data[key].push({ id:'proc_'+ev.procId, procId:ev.procId, start:barStart, end:barEnd, label:ev.code });
+        });
+      });
+    }else{
+      const savedLegacy = loadLegacyBars();
+      PARTS.forEach((part,pIdx)=>{
+        const rows = computeRowSpans(part);
+        rows.forEach((r,rIdx)=>{
+          const key = pIdx+'_'+rIdx;
+          const savedRow = savedLegacy && savedLegacy[key];
+          data[key] = savedRow || [{ id: uid(), start: r.span[0], end: r.span[1], label: r.label }];
+        });
+      });
+    }
+    return data;
+  }
+
+  let barsData = deriveBars();
+  // 作業票側の最新データからPARTSとbarsDataを両方作り直す（保存・外部変更の反映後に呼ぶ）
+  function refreshFromBuhin(){
+    PARTS = handoff ? convertBuhinParts(buhinState) : DEMO_PARTS;
+    barsData = deriveBars();
+  }
+
+  // ---- 進捗チェック欄（担当者×日付） ----
+  const CHECK_KEY = nsKey('sakaeIS_kobetsuMock_checks_v1');
+  const CHECK_NAMES = ['塩野','鶴山','足立','生管'];
+  function loadChecks(){
+    try{
+      const raw = localStorage.getItem(CHECK_KEY);
+      if(raw) return JSON.parse(raw);
+    }catch(e){}
+    return {};
+  }
+  function saveChecks(){ localStorage.setItem(CHECK_KEY, JSON.stringify(checksData)); }
+  let checksData = loadChecks();
+  const checkInner = document.getElementById('checkInner');
+
+  function buildCheckGrid(){
+    const unitCount = currentUnitCount();
+    const baseIdx = viewStartIdx();
+    let html = '<div class="checkHeaderRow">';
+    html += '<div class="checkSideHead">担当者</div>';
+    for(let i=0;i<unitCount;i++){
+      const absIdx = baseIdx+i;
+      const date = dateForIdx(absIdx);
+      const dow = date.getDay();
+      const cls = dow===0 ? ' sun' : (dow===6 ? ' sat' : '');
+      const todayCls = (absIdx===TODAY_IDX) ? ' today' : '';
+      html += '<div class="ganttDayCell'+cls+todayCls+'">'+date.getDate()+'</div>';
+    }
+    html += '</div>';
+
+    CHECK_NAMES.forEach(name=>{
+      html += '<div class="checkNameRow">';
+      html += '<div class="checkNameCell">'+esc(name)+'</div>';
+      for(let i=0;i<unitCount;i++){
+        const absIdx = baseIdx+i;
+        const done = !!checksData[name+'_'+absIdx];
+        const todayCls = (absIdx===TODAY_IDX) ? ' today' : '';
+        html += '<div class="checkCell'+(done?' done':'')+todayCls+'" data-name="'+esc(name)+'" data-day="'+absIdx+'"><span class="checkMark"></span></div>';
+      }
+      html += '</div>';
+    });
+    checkInner.innerHTML = html;
+  }
+  checkInner.addEventListener('click', (e)=>{
+    const cell = e.target.closest('.checkCell');
+    if(!cell) return;
+    const key = cell.dataset.name+'_'+cell.dataset.day;
+    checksData[key] = !checksData[key];
+    saveChecks();
+    cell.classList.toggle('done', !!checksData[key]);
+  });
+
+  // ---- 進捗チェック欄とガントの横スクロールを同期（日付の位置を揃える） ----
+  const checkScrollEl = document.getElementById('checkScroll');
+  const ganttScrollEl = document.getElementById('ganttScroll');
+  let syncingScroll = false;
+  function mirrorScroll(from, to){
+    if(syncingScroll) return;
+    syncingScroll = true;
+    to.scrollLeft = from.scrollLeft;
+    syncingScroll = false;
+  }
+  checkScrollEl.addEventListener('scroll', ()=>{
+    mirrorScroll(checkScrollEl, ganttScrollEl);
+    mirrorScroll(checkScrollEl, ganttHeaderScrollEl);
+  });
+  ganttScrollEl.addEventListener('scroll', ()=>{
+    mirrorScroll(ganttScrollEl, checkScrollEl);
+    mirrorScroll(ganttScrollEl, ganttHeaderScrollEl);
+  });
+
+  // ---- 作業票とリンクしている場合：受注情報カードとページ名を、共有データから直接表示する ----
+  const pageNameEl = document.getElementById('pageName');
+  const orderCardEl = document.getElementById('orderCard');
+  function renderOrderCard(){
+    if(!handoff) return;
+    if(pageNameEl) pageNameEl.textContent = '個別日程表（品番：' + urlProductNo + '）';
+    if(!orderCardEl) return;
+    const o = buhinState.order || {};
+    const shipBadge = o.shipDate ? ('発送：' + o.shipDate.slice(5).replace('-','/')) : '発送：未定';
+    const dueBadge = o.dueDate ? ('納期：' + o.dueDate.slice(5).replace('-','/')) : '納期：未定';
+    orderCardEl.innerHTML =
+      '<div><div class="oMeta">品番</div><div class="oNo">'+esc(urlProductNo)+'</div></div>'
+      + (o.orderNo ? '<div><div class="oMeta">社内№</div><div class="oModel">'+esc(o.orderNo)+'</div></div>' : '')
+      + '<div><div class="oMeta">型式・図番</div><div class="oModel">'+esc(o.model||'-')+'</div></div>'
+      + '<div><div class="oMeta">客先</div><div class="oModel">'+esc(o.customer||'-')+'</div></div>'
+      + '<div><div class="oMeta">作成日</div><div class="oModel">'+esc(o.createdDate ? o.createdDate.slice(5).replace('-','/') : '-')+'</div></div>'
+      + '<div><div class="oMeta">作成者</div><div class="oModel">'+esc(o.createdBy||'-')+'</div></div>'
+      + '<div class="shipBadge">'+esc(shipBadge)+'</div>'
+      + '<div class="dueBadge">'+esc(dueBadge)+'</div>';
+  }
+  renderOrderCard();
+
+  // ---- レンダリング ----
+  const ganttInner = document.getElementById('ganttInner');
+  const ganttHeaderInner = document.getElementById('ganttHeaderInner');
+  const ganttHeaderScrollEl = document.getElementById('ganttHeaderScroll');
+
+  document.documentElement.style.setProperty('--day-w', DAY_W+'px');
+
+  let weekendStyleEl = null;
+  // ---- 月の区切り線：ヘッダーの月ラベル行と同じ濃さの縦線を、表の一番下の行まで伸ばして引く。
+  // 日ごとの列は個別のDOM要素ではなくbackground-imageの縞模様で表現しているため、月境界も同じ仕組み（.trackへの2枚目の背景レイヤー）で描く。
+  // 週末の縞は7日周期のrepeating-linear-gradientだが、月境界はカレンダー月ごとの不定間隔なので、表の全幅ぶんの通常のlinear-gradientを別レイヤーとして重ねる。 ----
+  function buildMonthBoundaryStops(){
+    const segs = getMonthSegments();
+    const lineColor = '#8592a6';
+    const lineW = 1.5;
+    const stops = [];
+    let cumulative = 0;
+    segs.forEach((seg, i)=>{
+      cumulative += seg.days;
+      if(i === segs.length-1) return; // 表の右端（最後の区切り）には線を引かない
+      const pos = cumulative*DAY_W;
+      stops.push('transparent '+(pos-lineW)+'px', lineColor+' '+(pos-lineW)+'px', lineColor+' '+pos+'px', 'transparent '+pos+'px');
+    });
+    return stops;
+  }
+  // ---- 当日の列：進捗チェック欄（.checkCell.today）と同じ色で、日程表側も列全体に色を付ける ----
+  // 表の全幅ぶんの通常のlinear-gradientを、月境界と同じ仕組みで別レイヤーとして重ねる（表示期間の外にある時は何も描かない）。
+  function buildTodayStops(){
+    const offset = TODAY_IDX - viewStartIdx();
+    const totalDays = currentUnitCount();
+    if(offset < 0 || offset >= totalDays) return [];
+    const color = 'rgba(250,204,21,.28)'; // 黄色系の半透明で、少し目立つようにする
+    const pos = offset*DAY_W, posEnd = pos+DAY_W;
+    return [ 'transparent '+pos+'px', color+' '+pos+'px', color+' '+posEnd+'px', 'transparent '+posEnd+'px' ];
+  }
+  function applyWeekendBackground(){
+    const dow0 = viewStart.getDay();
+    const stops = [];
+    const half = DAY_W/2;
+    const boundaryColor = 'rgba(20,35,70,.18)'; // 1日ごとの境界線（はっきり）
+    const halfColor = 'rgba(20,35,70,.06)'; // 午前／午後の境界線（薄め）
+    for(let i=0;i<7;i++){
+      const dow = (dow0+i)%7;
+      const color = dow===0 ? 'rgba(220,38,38,.06)' : (dow===6 ? 'rgba(37,99,235,.06)' : 'transparent');
+      const dayStart = i*DAY_W, mid = dayStart+half, dayEnd = (i+1)*DAY_W;
+      stops.push(boundaryColor+' '+dayStart+'px', boundaryColor+' '+(dayStart+1)+'px');
+      stops.push(color+' '+(dayStart+1)+'px', color+' '+(mid-0.5)+'px');
+      stops.push(halfColor+' '+(mid-0.5)+'px', halfColor+' '+(mid+0.5)+'px');
+      stops.push(color+' '+(mid+0.5)+'px', color+' '+dayEnd+'px');
+    }
+    const monthStops = buildMonthBoundaryStops();
+    const todayStops = buildTodayStops();
+    const hasMonthLine = monthStops.length > 0;
+    const hasToday = todayStops.length > 0;
+    const images = 'repeating-linear-gradient(to right,'+stops.join(',')+')'
+      + (hasToday ? ', linear-gradient(to right,'+todayStops.join(',')+')' : '')
+      + (hasMonthLine ? ', linear-gradient(to right,'+monthStops.join(',')+')' : '');
+    const repeats = 'repeat-x' + (hasToday ? ', no-repeat' : '') + (hasMonthLine ? ', no-repeat' : '');
+    const sizes = (7*DAY_W)+'px 100%' + (hasToday ? ', 100% 100%' : '') + (hasMonthLine ? ', 100% 100%' : '');
+    if(!weekendStyleEl){
+      weekendStyleEl = document.createElement('style');
+      document.head.appendChild(weekendStyleEl);
+    }
+    weekendStyleEl.textContent = '.track{ background-image:'+images+'; background-repeat:'+repeats+'; background-size:'+sizes+'; }';
+  }
+  applyWeekendBackground();
+
+  // ---- 計画表の拡大縮小（ブラウザ全体ではなく、この日程表だけを拡大縮小する） ----
+  function setZoom(px){
+    DAY_W = Math.max(14, Math.min(52, px));
+    localStorage.setItem(ZOOM_KEY, String(DAY_W));
+    document.documentElement.style.setProperty('--day-w', DAY_W+'px');
+    document.getElementById('zoomResetBtn').textContent = Math.round(DAY_W/30*100)+'%';
+    applyWeekendBackground();
+    render();
+  }
+  document.getElementById('zoomInBtn').addEventListener('click', ()=> setZoom(DAY_W+4));
+  document.getElementById('zoomOutBtn').addEventListener('click', ()=> setZoom(DAY_W-4));
+  document.getElementById('zoomResetBtn').addEventListener('click', ()=> setZoom(30));
+  document.getElementById('zoomResetBtn').textContent = Math.round(DAY_W/30*100)+'%';
+
+  function buildLegend(){
+    const legendEl = document.getElementById('legend');
+    let html = '';
+    LEGEND_CODES.forEach(code=>{
+      html += '<span class="lgItem"><span class="lgSwatch" style="background:'+CODE_COLORS[code]+';"></span>'+esc(code)+'</span>';
+    });
+    html += '<span class="lgItem"><span class="lgSwatch" style="background:'+DEFAULT_BAR_COLOR+';"></span>その他</span>';
+    html += '<span class="lgHint">1部品＝3行（区分ラベルは省略・色で判別）</span>';
+    legendEl.innerHTML = html;
+  }
+  buildLegend();
+
+  function buildHeader(){
+    const segs = getMonthSegments();
+    const total = currentUnitCount();
+    const baseIdx = viewStartIdx();
+
+    let monthRow = '<div class="ganttMonthRow">';
+    monthRow += '<div class="ganttSideHead" style="border-right:1.5px solid #222;"></div>';
+    if(handoff) monthRow += '<div class="ganttDatesHead" style="border-right:1.5px solid #222;"></div>';
+    segs.forEach(seg=>{
+      monthRow += '<div class="monthCell" style="width:'+(seg.days*DAY_W)+'px;flex:0 0 '+(seg.days*DAY_W)+'px;">'+esc(seg.label)+'</div>';
+    });
+    monthRow += '</div>';
+
+    let dayRow = '<div class="ganttHeaderRow">';
+    dayRow += '<div class="ganttSideHead">部品（連番・品名・数量）</div>';
+    if(handoff) dayRow += '<div class="ganttDatesHead">納期（DE/SU/PN等）</div>';
+    for(let i=0;i<total;i++){
+      const absIdx = baseIdx+i;
+      const date = dateForIdx(absIdx);
+      const dow = date.getDay();
+      const cls = dow===0 ? ' sun' : (dow===6 ? ' sat' : '');
+      const todayCls = (absIdx===TODAY_IDX) ? ' today' : '';
+      dayRow += '<div class="ganttDayCell'+cls+todayCls+'">'+date.getDate()+'</div>';
+    }
+    dayRow += '</div>';
+    return monthRow + dayRow;
+  }
+
+  // ---- 同じ段の中で日程が重なっているバーのidを洗い出す（薄色の全体バーは対象外）。見た目で警告するだけで、位置は動かさない ----
+  function computeConflictIds(bars){
+    const ids = new Set();
+    const real = bars.filter(b=>!b.pale);
+    for(let i=0;i<real.length;i++){
+      for(let j=i+1;j<real.length;j++){
+        const a=real[i], b=real[j];
+        if(a.start <= b.end && b.start <= a.end){ ids.add(a.id); ids.add(b.id); }
+      }
+    }
+    return ids;
+  }
+
+  function buildBarHtml(pIdx, rIdx, bar, isConflict){
+    const HALF_W = DAY_W/2;
+    const left = (bar.start-viewStartHalf())*HALF_W;
+    const width = (bar.end-bar.start+1)*HALF_W;
+    const color = getBarColor(bar.label);
+    const bs = dateForHalfIdx(bar.start);
+    const bfmt = h => (h.date.getMonth()+1)+'/'+h.date.getDate()+(h.isPM?'午後':'午前');
+    const isLinkedProc = !!bar.procId;
+    const conflictHint = isConflict ? '\n⚠ 同じ段の別の工程と日程が重なっています' : '';
+    const dateHint = isLinkedProc
+      ? ('\n'+bfmt(bs)+(bar.end>bar.start ? ('　～　'+bfmt(dateForHalfIdx(bar.end))) : '')+'（右端＝作業票の工程日付「終了・納期」とリンク中。端をつまむと日数を変更できます）')
+      : ('\n'+bfmt(bs)+'　～　'+bfmt(dateForHalfIdx(bar.end)));
+    const gotoProc = matchProcGantt(bar.label);
+    const ncHint = gotoProc ? ('\n（ダブルクリックで'+esc(gotoProc.code)+'日程表を開く）') : '';
+    const ctxHint = '\n（右クリックで編集・削除メニュー）';
+    const handleLeftHtml = '<div class="handle left" data-role="handle-left"></div>';
+    const handleRightHtml = '<div class="handle right" data-role="handle-right"></div>';
+    const conflictCls = isConflict ? ' conflict' : '';
+    return '<div class="bar'+conflictCls+'" data-range="'+bar.id+'" data-procid="'+(bar.procId||'')+'" style="left:'+left+'px;width:'+width+'px;background:'+color+';" title="'+esc(bar.label||'')+dateHint+ncHint+ctxHint+conflictHint+'">'
+      + handleLeftHtml
+      + '<span class="barLabel" style="background:'+color+';">'+esc(bar.label||'')+'</span>'
+      + handleRightHtml
+      + '</div>';
+  }
+
+  function buildParts(){
+    const unitCount = currentUnitCount();
+    const totalDayWidth = unitCount * DAY_W;
+    let html = '';
+    PARTS.forEach((part,pIdx)=>{
+      html += '<div class="ganttPartGroup">';
+      const prefixLine = (part.prefix && part.prefix.length) ? '<div class="pPrefix">'+esc(part.prefix.join(' ・ '))+'</div>' : '';
+      const rowCtrl = handoff
+        ? '<div class="rowCountCtrl">'
+          + '<button type="button" class="rowBtn" data-role="rowdec" data-part="'+pIdx+'" title="工程の段を減らす">－</button>'
+          + '<span class="rowCountLabel">工程 '+procRowCount(pIdx)+'段</span>'
+          + '<button type="button" class="rowBtn" data-role="rowinc" data-part="'+pIdx+'" title="工程の段を増やす（バーが重なる時に）">＋</button>'
+          + '</div>'
+        : '';
+      html += '<div class="ganttSideCell"><div class="pNo">'+esc(part.no)+'</div><div class="pName">'+esc(part.name)+'</div><div class="pQty">数量：'+esc(part.qty)+'</div>'+prefixLine+rowCtrl+'</div>';
+      if(handoff) html += '<div class="ganttDatesCell">'+buildDateTagsHtml(part)+'</div>';
+      html += '<div class="ganttRows">';
+      const rowCount = partRowCount(pIdx);
+      for(let rIdx=0; rIdx<rowCount; rIdx++){
+        const key = pIdx+'_'+rIdx;
+        const bars = barsData[key] || [];
+        const conflictIds = computeConflictIds(bars);
+        html += '<div class="ganttRow">';
+        html += '<div class="track" data-role="track" data-part="'+pIdx+'" data-row="'+rIdx+'" data-unit-count="'+unitCount+'" style="width:'+totalDayWidth+'px;">';
+        html += bars.map(b=>buildBarHtml(pIdx,rIdx,b,conflictIds.has(b.id))).join('');
+        html += '</div>';
+        html += '</div>';
+      }
+      html += '</div>';
+      html += '</div>';
+    });
+    return html;
+  }
+
+  function render(){
+    ganttHeaderInner.innerHTML = buildHeader();
+    ganttInner.innerHTML = buildParts();
+    ganttInner.classList.toggle('confirmedMode', isConfirmed());
+    renderMemoLayer();
+    ganttHeaderScrollEl.scrollLeft = ganttScrollEl.scrollLeft;
+    buildCheckGrid();
+    renderConfirmRow();
+  }
+
+  document.getElementById('confirmRow').addEventListener('click', (e)=>{
+    if(e.target.id === 'confirmPlanBtn'){
+      confirmState = { confirmedAt: new Date().toISOString() };
+      saveConfirm();
+      renderConfirmRow();
+    }else if(e.target.id === 'confirmUnlockBtn'){
+      if(!window.confirm('確定を解除して、計画を編集できるようにしますか？')) return;
+      confirmState = null;
+      saveConfirm();
+      renderConfirmRow();
+    }
+  });
+
+  // ---- 表示期間の選択（開始日・終了日を自由に指定。「初期表示に戻す」で最初の工程ガントバーから1ヶ月分に戻せる） ----
+  const viewStartInput = document.getElementById('viewStartInput');
+  const viewEndInput = document.getElementById('viewEndInput');
+  function updateRangeInputsUI(){
+    viewStartInput.value = fmtDateForInput(viewStart);
+    viewEndInput.value = fmtDateForInput(viewEnd);
+  }
+  function applyViewChange(newStart, newEnd){
+    if(!newStart || !newEnd || newEnd < newStart){ updateRangeInputsUI(); return; }
+    viewStart = newStart; viewEnd = newEnd;
+    saveView();
+    updateRangeInputsUI();
+    applyWeekendBackground();
+    render();
+  }
+  viewStartInput.addEventListener('change', ()=> applyViewChange(parseDateStr(viewStartInput.value), viewEnd));
+  viewEndInput.addEventListener('change', ()=> applyViewChange(viewStart, parseDateStr(viewEndInput.value)));
+  document.getElementById('rangeResetBtn').addEventListener('click', ()=>{
+    viewStart = defaultViewStart();
+    viewEnd = defaultViewEnd();
+    saveView();
+    updateRangeInputsUI();
+    applyWeekendBackground();
+    render();
+  });
+  updateRangeInputsUI();
+
+  render();
+
+  // ---- ドラッグ操作（main tool と同じ create / move / resize-left / resize-right）----
+  let drag = null;
+
+  // 戻り値は絶対半日idx（RANGE_START基準）。トラック内のピクセル位置はいったん表示期間内での相対idxとして求め、
+  // 表示期間の開始オフセット（viewStartHalf）を足して絶対座標に変換する。
+  function unitFromClientX(trackEl, clientX){
+    const rect = trackEl.getBoundingClientRect();
+    const dayCount = Number(trackEl.dataset.unitCount) || currentUnitCount();
+    const halfCount = dayCount * 2;
+    let idx = Math.floor((clientX - rect.left) / (DAY_W/2)) + 1;
+    if(idx < 1) idx = 1;
+    if(idx > halfCount) idx = halfCount;
+    return idx + viewStartHalf() - 1;
+  }
+
+  function updateBarVisual(trackEl, id, colStart, colEnd, label){
+    let barEl = trackEl.querySelector('[data-range="'+id+'"]');
+    const HALF_W = DAY_W/2;
+    const left = (colStart-viewStartHalf())*HALF_W;
+    const width = (colEnd-colStart+1)*HALF_W;
+    const color = getBarColor(label);
+    if(!barEl){
+      trackEl.insertAdjacentHTML('beforeend',
+        '<div class="bar" data-range="'+id+'" style="background:'+color+';">'
+        + '<div class="handle left" data-role="handle-left"></div>'
+        + '<span class="barLabel"></span>'
+        + '<div class="handle right" data-role="handle-right"></div></div>');
+      barEl = trackEl.querySelector('[data-range="'+id+'"]');
+    }
+    barEl.style.left = left+'px';
+    barEl.style.width = width+'px';
+    barEl.style.background = color;
+  }
+
+  // ---- 工程名クイック選択ピッカー（バー作成・編集を楽にする） ----
+  const labelPicker = document.getElementById('labelPicker');
+  const lpInput = document.getElementById('lpInput');
+  const lpGroups = document.getElementById('lpGroups');
+  const lpApply = document.getElementById('lpApply');
+  const lpClear = document.getElementById('lpClear');
+  const lpCancel = document.getElementById('lpCancel');
+  let lpTarget = null;
+
+  (function buildLabelPickerGroups(){
+    let html = '<div class="lpList">';
+    LABEL_PRESETS.forEach(g=>{
+      g.items.forEach(code=>{
+        const color = CODE_COLORS[code] || DEFAULT_BAR_COLOR;
+        html += '<button type="button" class="lpItem" data-code="'+esc(code)+'"><span class="lpItemSwatch" style="background:'+color+';"></span>'+esc(code)+'</button>';
+      });
+    });
+    html += '</div>';
+    lpGroups.innerHTML = html;
+  })();
+
+  function openLabelPicker(key, rangeId, currentLabel, anchorRect, isNew){
+    lpTarget = { key, rangeId, isNew: !!isNew };
+    lpInput.value = currentLabel || '';
+    const pickerW = 300;
+    let left = anchorRect.left;
+    let top = anchorRect.bottom + 6;
+    if(left + pickerW > window.innerWidth - 10) left = window.innerWidth - pickerW - 10;
+    if(left < 10) left = 10;
+    if(top + 300 > window.innerHeight){ top = anchorRect.top - 306; if(top < 10) top = 10; }
+    labelPicker.style.left = left+'px';
+    labelPicker.style.top = top+'px';
+    labelPicker.classList.add('open');
+    lpInput.focus();
+    lpInput.select();
+  }
+  function closeLabelPicker(){
+    labelPicker.classList.remove('open');
+    lpTarget = null;
+  }
+  // クリックミスで新規作成してしまったバーは、決定せずに閉じたら消す（作業票側にはまだ何も書き込んでいないのでそのまま破棄でよい）
+  function cancelLabelPicker(){
+    if(!lpTarget) return;
+    const { key, rangeId, isNew } = lpTarget;
+    if(isNew){
+      barsData[key] = (barsData[key]||[]).filter(b=>b.id!==rangeId);
+      closeLabelPicker();
+      render();
+      return;
+    }
+    closeLabelPicker();
+  }
+  // ---- 「NC1 ウラ」のように空白区切りで入力された文字列を、工程コード（NC1）と備考（ウラ）に分ける ----
+  // 空白が無ければ全体をコードとして扱う（従来通り）。同じ設備でも加工方法違いのパターンを備考側で区別するために使う。
+  function splitLabelInput(raw){
+    const s = (raw||'').trim();
+    if(!s) return { code:'', note:'' };
+    const idx = s.search(/\s/);
+    if(idx === -1) return { code: s, note: '' };
+    return { code: s.slice(0, idx), note: s.slice(idx).trim() };
+  }
+  function commitLabelPicker(newLabel){
+    if(!lpTarget) return;
+    if(!checkEditable()){ cancelLabelPicker(); return; }
+    const { key, rangeId, isNew } = lpTarget;
+    const label = (newLabel||'').trim();
+
+    if(handoff && isNew){
+      // ドラッグで新規作成したバーに工程名を確定＝作業票側に新しい工程として追加する
+      if(!label){ cancelLabelPicker(); return; }
+      const bar = (barsData[key]||[]).find(b=>b.id===rangeId);
+      const pIdx = Number(key.split('_')[0]);
+      const part = PARTS[pIdx];
+      const bs = bar && part && buhinState.parts.find(p=>p.id===part.partId);
+      if(bs){
+        // 作業票の工程日は「終了（納期）」を表すため、バーの右端（bar.end）を新しい工程の日付にする
+        const d = dateForHalfIdx(bar.end);
+        const dt = d.date;
+        const dateStr = dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+        // 「NC1 ウラ」のように空白区切りで入力したら、コード（NC1）と備考（ウラ）に分けて保存する
+        const { code: newCode, note: newNote } = splitLabelInput(label);
+        const newProc = { id: uid(), code: newCode, date: dateStr, note: newNote, ampm: d.isPM?'PM':'AM', days: Math.max(1, bar.end - bar.start + 1) };
+        bs.processes = bs.processes || [];
+        bs.processes.push(newProc);
+        const laneIdx = Number(key.split('_')[1]);
+        laneAssign[newProc.id] = Math.max(0, laneIdx);
+        saveLaneAssign();
+        saveBuhinState();
+      }
+      closeLabelPicker();
+      refreshFromBuhin();
+      render();
+      return;
+    }
+
+    if(handoff && !isNew){
+      // 既存の工程バーのラベル編集＝作業票側の工程コードを変更（procIdで特定）。クリア（空欄）は工程の削除として扱う
+      const bar = (barsData[key]||[]).find(b=>b.id===rangeId);
+      const procId = bar && bar.procId;
+      if(procId){
+        const pIdx = Number(key.split('_')[0]);
+        const part = PARTS[pIdx];
+        const bs = part && buhinState.parts.find(p=>p.id===part.partId);
+        const proc = bs && (bs.processes||[]).find(pr=>pr.id===procId);
+        if(bs && proc){
+          if(!label){
+            bs.processes = bs.processes.filter(pr=>pr.id!==procId);
+            delete laneAssign[procId];
+            saveLaneAssign();
+          }else{
+            const { code: newCode, note: newNote } = splitLabelInput(label);
+            proc.code = newCode;
+            proc.note = newNote;
+          }
+          saveBuhinState();
+        }
+      }
+      closeLabelPicker();
+      refreshFromBuhin();
+      render();
+      return;
+    }
+
+    // 非リンク（品番なしの旧サンプル）モード：従来通りバーだけを更新
+    const bar = (barsData[key]||[]).find(b=>b.id===rangeId);
+    if(bar){
+      bar.label = label;
+      saveLegacyBars();
+    }
+    closeLabelPicker();
+    render();
+  }
+  lpGroups.addEventListener('click', (e)=>{
+    const btn = e.target.closest('.lpItem');
+    if(!btn) return;
+    commitLabelPicker(btn.dataset.code);
+  });
+  lpApply.addEventListener('click', ()=> commitLabelPicker(lpInput.value));
+  lpClear.addEventListener('click', ()=> commitLabelPicker(''));
+  lpCancel.addEventListener('click', cancelLabelPicker);
+  lpInput.addEventListener('keydown', (e)=>{
+    if(e.key==='Enter'){ e.preventDefault(); commitLabelPicker(lpInput.value); }
+    else if(e.key==='Escape'){ e.preventDefault(); cancelLabelPicker(); }
+  });
+  document.addEventListener('mousedown', (e)=>{
+    if(!labelPicker.classList.contains('open')) return;
+    if(labelPicker.contains(e.target)) return;
+    cancelLabelPicker();
+  });
+
+  // ---- 工程の段を手動で増減（バーが重なって置きづらい部品だけ、その場で段を追加できるように） ----
+  ganttInner.addEventListener('click', (e)=>{
+    const btn = e.target.closest('.rowBtn');
+    if(!btn) return;
+    const pIdx = Number(btn.dataset.part);
+    const cur = procRowCount(pIdx);
+    if(btn.dataset.role === 'rowinc'){
+      rowCounts[pIdx] = cur + 1;
+      saveRowCounts();
+      render();
+    }else if(btn.dataset.role === 'rowdec'){
+      if(cur <= 1) return;
+      const key = pIdx+'_'+(cur-1);
+      const bars = barsData[key] || [];
+      if(bars.length){
+        if(!window.confirm('この段にある工程バーは1段目に移動されます（工程データ自体は消えません）。よろしいですか？')) return;
+        bars.forEach(b=>{ if(b.procId) laneAssign[b.procId] = 0; });
+        saveLaneAssign();
+      }
+      rowCounts[pIdx] = cur - 1;
+      saveRowCounts();
+      refreshFromBuhin();
+      render();
+    }
+  });
+
+  // ---- バーの削除処理（右クリックメニューの「削除」から呼ぶ。作業票とリンク中なら向こうの工程も一緒に消える） ----
+  function deleteBarByTarget(key, rangeId, barEl){
+    const trackEl = barEl.closest('[data-role="track"]');
+    const procId = barEl.dataset.procid;
+    if(handoff && procId){
+      const pIdx = Number(trackEl.dataset.part);
+      const part = PARTS[pIdx];
+      const bs = part && buhinState.parts.find(p=>p.id===part.partId);
+      const proc = bs && (bs.processes||[]).find(pr=>pr.id===procId);
+      const procSnapshot = proc ? JSON.parse(JSON.stringify(proc)) : null;
+      const laneSnapshot = laneAssign[procId];
+      const label = proc ? (proc.code||'工程') : '工程';
+      if(bs) bs.processes = (bs.processes||[]).filter(pr=>pr.id!==procId);
+      delete laneAssign[procId];
+      saveLaneAssign();
+      saveBuhinState();
+      refreshFromBuhin();
+      render();
+      if(procSnapshot){
+        showUndo(label+'のバーを削除しました', ()=>{
+          const bs2 = part && buhinState.parts.find(p=>p.id===part.partId);
+          if(bs2){
+            bs2.processes = bs2.processes || [];
+            bs2.processes.push(procSnapshot);
+          }
+          if(laneSnapshot !== undefined) laneAssign[procId] = laneSnapshot;
+          saveLaneAssign();
+          saveBuhinState();
+          refreshFromBuhin();
+          render();
+        });
+      }
+      return;
+    }
+    const bar = (barsData[key]||[]).find(b=>b.id===rangeId);
+    const barSnapshot = bar ? JSON.parse(JSON.stringify(bar)) : null;
+    barsData[key] = (barsData[key]||[]).filter(b=>b.id!==rangeId);
+    if(!handoff) saveLegacyBars();
+    render();
+    if(barSnapshot){
+      showUndo((barSnapshot.label||'バー')+'を削除しました', ()=>{
+        barsData[key] = barsData[key] || [];
+        barsData[key].push(barSnapshot);
+        if(!handoff) saveLegacyBars();
+        render();
+      });
+    }
+  }
+
+  // ---- バーの右クリックメニュー：バーの設置／編集／コピー・ペースト／削除（バー上に常時出る×や空白クリックでの新規作成は誤操作しやすかったため廃止） ----
+  const barCtxMenu = document.getElementById('barCtxMenu');
+  const ctxAddBar = document.getElementById('ctxAddBar');
+  const ctxEditBar = document.getElementById('ctxEditBar');
+  const ctxGotoProc = document.getElementById('ctxGotoProc');
+  const ctxCopyBar = document.getElementById('ctxCopyBar');
+  const ctxPasteBar = document.getElementById('ctxPasteBar');
+  const ctxDeleteBar = document.getElementById('ctxDeleteBar');
+  let ctxBarTarget = null; // { kind:'bar', key, rangeId, barEl } または { kind:'track', key, trackEl, startUnit }
+  let copiedBarData = null; // { label, days } ※コピーしたバーの工程名と日数（位置は貼り付け先のものをそのまま使う）
+
+  function openBarCtxMenu(x, y){
+    barCtxMenu.classList.add('open');
+    const menuW = 150;
+    let left = x, top = y;
+    if(left + menuW > window.innerWidth - 10) left = window.innerWidth - menuW - 10;
+    if(left < 10) left = 10;
+    barCtxMenu.style.left = left+'px';
+    barCtxMenu.style.top = top+'px';
+  }
+  function closeBarCtxMenu(){
+    barCtxMenu.classList.remove('open');
+    ctxBarTarget = null;
+  }
+  ganttInner.addEventListener('contextmenu', (e)=>{
+    const barEl = e.target.closest('[data-range]');
+    if(barEl){
+      e.preventDefault();
+      const trackEl = barEl.closest('[data-role="track"]');
+      const key = trackEl.dataset.part+'_'+trackEl.dataset.row;
+      ctxBarTarget = { kind:'bar', key, rangeId: barEl.dataset.range, barEl };
+      const barForMenu = (barsData[key]||[]).find(b=>b.id===barEl.dataset.range);
+      const gotoProcForMenu = barForMenu && matchProcGantt(barForMenu.label);
+      ctxAddBar.style.display = 'none';
+      ctxEditBar.style.display = '';
+      ctxGotoProc.style.display = gotoProcForMenu ? '' : 'none';
+      ctxCopyBar.style.display = '';
+      ctxPasteBar.style.display = '';
+      ctxPasteBar.disabled = !copiedBarData;
+      ctxPasteBar.textContent = copiedBarData ? ('バーのペースト（'+copiedBarData.label+'）') : 'バーのペースト（先にコピーしてください）';
+      ctxDeleteBar.style.display = '';
+      openBarCtxMenu(e.clientX, e.clientY);
+      return;
+    }
+    const trackEl = e.target.closest('[data-role="track"]');
+    if(trackEl){
+      e.preventDefault();
+      const key = trackEl.dataset.part+'_'+trackEl.dataset.row;
+      const startUnit = unitFromClientX(trackEl, e.clientX);
+      ctxBarTarget = { kind:'track', key, trackEl, startUnit };
+      ctxAddBar.style.display = '';
+      ctxEditBar.style.display = 'none';
+      ctxGotoProc.style.display = 'none';
+      ctxCopyBar.style.display = 'none';
+      ctxPasteBar.style.display = '';
+      ctxPasteBar.disabled = !copiedBarData;
+      ctxPasteBar.textContent = copiedBarData ? ('バーのペースト（'+copiedBarData.label+'）') : 'バーのペースト（先にコピーしてください）';
+      ctxDeleteBar.style.display = 'none';
+      openBarCtxMenu(e.clientX, e.clientY);
+    }
+  });
+  document.addEventListener('click', (e)=>{
+    if(!barCtxMenu.classList.contains('open')) return;
+    if(barCtxMenu.contains(e.target)) return;
+    closeBarCtxMenu();
+  });
+  window.addEventListener('scroll', closeBarCtxMenu, true);
+  ctxAddBar.addEventListener('click', ()=>{
+    if(!ctxBarTarget || ctxBarTarget.kind!=='track') return;
+    closeBarCtxMenu();
+    if(!checkEditable()) return;
+    const { key, trackEl, startUnit } = ctxBarTarget;
+    const newId = uid();
+    // 幅が狭いと工程記号が読めないので初期幅は3コマ（1.5日分）にしておく
+    const unitCountNow = (Number(trackEl.dataset.unitCount) || currentUnitCount()) * 2;
+    const initEnd = Math.min(startUnit+2, unitCountNow);
+    barsData[key] = barsData[key] || [];
+    barsData[key].push({ id:newId, start:startUnit, end:initEnd, label:'' });
+    render();
+    const barEl = ganttInner.querySelector('[data-range="'+newId+'"]');
+    if(barEl) openLabelPicker(key, newId, '', barEl.getBoundingClientRect(), true);
+  });
+  ctxEditBar.addEventListener('click', ()=>{
+    if(!ctxBarTarget || ctxBarTarget.kind!=='bar') return;
+    const { key, rangeId, barEl } = ctxBarTarget;
+    const bar = (barsData[key]||[]).find(b=>b.id===rangeId);
+    closeBarCtxMenu();
+    if(bar) openLabelPicker(key, rangeId, bar.label, barEl.getBoundingClientRect(), false);
+  });
+  ctxGotoProc.addEventListener('click', ()=>{
+    if(!ctxBarTarget || ctxBarTarget.kind!=='bar') return;
+    const { key, rangeId } = ctxBarTarget;
+    const bar = (barsData[key]||[]).find(b=>b.id===rangeId);
+    closeBarCtxMenu();
+    const gotoProc = bar && matchProcGantt(bar.label);
+    if(gotoProc){
+      location.href = gotoProc.file + (urlProductNo ? ('?productNo='+encodeURIComponent(urlProductNo)) : '');
+    }
+  });
+  ctxCopyBar.addEventListener('click', ()=>{
+    if(!ctxBarTarget || ctxBarTarget.kind!=='bar') return;
+    const { key, rangeId } = ctxBarTarget;
+    const bar = (barsData[key]||[]).find(b=>b.id===rangeId);
+    closeBarCtxMenu();
+    if(!bar) return;
+    copiedBarData = { label: bar.label, days: Math.max(1, bar.end - bar.start + 1) };
+  });
+  ctxPasteBar.addEventListener('click', ()=>{
+    if(!ctxBarTarget || !copiedBarData) return;
+    if(!checkEditable()){ closeBarCtxMenu(); return; }
+    if(ctxBarTarget.kind==='bar'){
+      const { key, rangeId, barEl } = ctxBarTarget;
+      closeBarCtxMenu();
+      pasteBarData(key, rangeId, barEl);
+      return;
+    }
+    if(ctxBarTarget.kind==='track'){
+      const { key, trackEl, startUnit } = ctxBarTarget;
+      closeBarCtxMenu();
+      const newId = uid();
+      const unitCountNow = (Number(trackEl.dataset.unitCount) || currentUnitCount()) * 2;
+      let newEnd = startUnit + copiedBarData.days - 1;
+      if(newEnd > unitCountNow) newEnd = unitCountNow;
+      barsData[key] = barsData[key] || [];
+      barsData[key].push({ id:newId, start:startUnit, end:newEnd, label:'' });
+      // 工程名は既にコピー済みなので、工程名ピッカーを開かずそのまま確定する（新規作成時と同じcommitLabelPickerの流れを再利用）
+      lpTarget = { key, rangeId:newId, isNew:true };
+      commitLabelPicker(copiedBarData.label);
+    }
+  });
+  ctxDeleteBar.addEventListener('click', ()=>{
+    if(!ctxBarTarget || ctxBarTarget.kind!=='bar') return;
+    const { key, rangeId, barEl } = ctxBarTarget;
+    closeBarCtxMenu();
+    if(!checkEditable()) return;
+    deleteBarByTarget(key, rangeId, barEl);
+  });
+
+  // ---- 貼り付け先のバーの位置（開始日）はそのまま、コピー元の工程名・日数だけを上書きする ----
+  function pasteBarData(key, rangeId, barEl){
+    const bar = (barsData[key]||[]).find(b=>b.id===rangeId);
+    if(!bar || !copiedBarData) return;
+    const trackEl = barEl.closest('[data-role="track"]');
+    const unitCountNow = (Number(trackEl.dataset.unitCount) || currentUnitCount()) * 2;
+    let newEnd = bar.start + copiedBarData.days - 1;
+    if(newEnd > unitCountNow) newEnd = unitCountNow;
+    if(newEnd < bar.start) newEnd = bar.start;
+    const procId = barEl.dataset.procid;
+    if(handoff && procId){
+      const pIdx = Number(key.split('_')[0]);
+      const part = PARTS[pIdx];
+      const bs = part && buhinState.parts.find(p=>p.id===part.partId);
+      const proc = bs && (bs.processes||[]).find(pr=>pr.id===procId);
+      if(proc){
+        const { code: pastedCode, note: pastedNote } = splitLabelInput(copiedBarData.label);
+        proc.code = pastedCode;
+        proc.note = pastedNote;
+        proc.days = newEnd - bar.start + 1;
+        const d = dateForHalfIdx(newEnd);
+        const dt = d.date;
+        proc.date = dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+        proc.ampm = d.isPM ? 'PM' : 'AM';
+      }
+      saveBuhinState();
+      refreshFromBuhin();
+      render();
+      return;
+    }
+    bar.label = copiedBarData.label;
+    bar.end = newEnd;
+    if(!handoff) saveLegacyBars();
+    render();
+  }
+
+  ganttInner.addEventListener('mousedown', (e)=>{
+    const trackEl = e.target.closest('[data-role="track"]');
+    if(!trackEl) return;
+    e.preventDefault();
+
+    const key = trackEl.dataset.part+'_'+trackEl.dataset.row;
+    const startUnit = unitFromClientX(trackEl, e.clientX);
+
+    const handleLeft = e.target.closest('[data-role="handle-left"]');
+    const handleRight = e.target.closest('[data-role="handle-right"]');
+    const barEl = e.target.closest('[data-range]');
+
+    if(handleLeft || handleRight || barEl){
+      // 計画確定中はバーのドラッグ移動・伸縮を始めさせない（バッジ・ヒントで状態は見えているので、ここでは静かに無視する）
+      if(isConfirmed()) return;
+      const rangeId = barEl.dataset.range;
+      const bar = (barsData[key]||[]).find(b=>b.id===rangeId);
+      if(!bar) return;
+      const orig = { start: bar.start, end: bar.end };
+      const label = bar.label;
+      if(handleLeft){
+        drag = { mode:'resize-left', trackEl, key, rangeId, isNew:false, working:{...orig}, orig, label };
+      }else if(handleRight){
+        drag = { mode:'resize-right', trackEl, key, rangeId, isNew:false, working:{...orig}, orig, label };
+      }else{
+        const rowsWrap = trackEl.closest('.ganttRows');
+        const partTracks = rowsWrap ? Array.from(rowsWrap.querySelectorAll('[data-role="track"]')) : [trackEl];
+        drag = {
+          mode:'move', trackEl, key, rangeId, isNew:false, working:{...orig}, orig, startUnit, label,
+          partTracks, curTrackEl: trackEl, curRow: Number(trackEl.dataset.row)
+        };
+      }
+    }
+    // クリック（ドラッグ含む）だけでの新規バー作成は誤操作が多かったため廃止。
+    // バーの新規設置は右クリックメニューの「バーの設置」から行う（下のcontextmenuハンドラ参照）。
+  });
+
+  document.addEventListener('mousemove', (e)=>{
+    if(!drag) return;
+    const { mode, working, orig } = drag;
+    let trackEl = drag.curTrackEl || drag.trackEl;
+
+    if(mode==='move' && drag.partTracks && drag.partTracks.length){
+      let rowEl = trackEl;
+      for(const t of drag.partTracks){
+        const r = t.getBoundingClientRect();
+        if(e.clientY >= r.top && e.clientY <= r.bottom){ rowEl = t; break; }
+      }
+      if(rowEl !== trackEl){
+        const oldBarEl = trackEl.querySelector('[data-range="'+drag.rangeId+'"]');
+        if(oldBarEl) oldBarEl.remove();
+        drag.curTrackEl = rowEl;
+        drag.curRow = Number(rowEl.dataset.row);
+        trackEl = rowEl;
+      }
+    }
+
+    const unit = unitFromClientX(trackEl, e.clientX);
+
+    if(mode==='create'){
+      working.start = Math.min(drag.startUnit, unit);
+      working.end = Math.max(drag.startUnit, unit);
+    }else if(mode==='move'){
+      const unitCount = (Number(trackEl.dataset.unitCount) || currentUnitCount()) * 2;
+      const len = orig.end - orig.start;
+      let newStart = orig.start + (unit - drag.startUnit);
+      if(newStart < 1) newStart = 1;
+      if(newStart + len > unitCount) newStart = unitCount - len;
+      working.start = newStart;
+      working.end = newStart + len;
+    }else if(mode==='resize-left'){
+      let newStart = unit;
+      if(newStart > orig.end) newStart = orig.end;
+      working.start = newStart; working.end = orig.end;
+    }else if(mode==='resize-right'){
+      let newEnd = unit;
+      if(newEnd < orig.start) newEnd = orig.start;
+      working.start = orig.start; working.end = newEnd;
+    }
+    updateBarVisual(trackEl, drag.rangeId, working.start, working.end, drag.label);
+  });
+
+  document.addEventListener('mouseup', ()=>{
+    if(!drag) return;
+    const { key, rangeId, working, mode, curRow, orig } = drag;
+    // 実質的に動いていない単なるクリックでは再描画しない。
+    // ここで毎回render()するとバーのDOM要素が作り直され、ダブルクリック（NC日程表への遷移や工程名編集）がブラウザ側で
+    // 「同じ要素への2回目のクリック」と認識されず不発になってしまうため。
+    const origRowIdx = Number(key.split('_')[1]);
+    const rowChanged = mode==='move' && curRow !== undefined && curRow !== origRowIdx;
+    const posChanged = !orig || working.start !== orig.start || working.end !== orig.end;
+    if(mode !== 'create' && !rowChanged && !posChanged){
+      drag = null;
+      return;
+    }
+    let finalKey = key;
+    if(mode==='move' && curRow !== undefined){
+      finalKey = key.split('_')[0] + '_' + curRow;
+    }
+    const existingBar = (barsData[key]||[]).find(b=>b.id===rangeId);
+
+    // 作業票とリンク済みの既存バーを動かした場合：バーの右端（終了/納期）の位置を作業票側の工程日付に直接書き戻す（幅は保存しない）
+    if(handoff && existingBar && existingBar.procId){
+      const pIdx = Number(key.split('_')[0]);
+      const part = PARTS[pIdx];
+      const bs = part && buhinState.parts.find(p=>p.id===part.partId);
+      const proc = bs && (bs.processes||[]).find(pr=>pr.id===existingBar.procId);
+      if(proc){
+        const procId = existingBar.procId;
+        // 元に戻す用に、書き換える前の値を控えておく
+        const origDate = proc.date, origAmpm = proc.ampm, origDays = proc.days;
+        const hadLane = Object.prototype.hasOwnProperty.call(laneAssign, procId);
+        const origLane = laneAssign[procId];
+        const d = dateForHalfIdx(working.end);
+        const dt = d.date;
+        proc.date = dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+        proc.ampm = d.isPM ? 'PM' : 'AM';
+        proc.days = Math.max(1, working.end - working.start + 1);
+        if(rowChanged){
+          laneAssign[procId] = curRow;
+          saveLaneAssign();
+        }
+        saveBuhinState();
+        refreshFromBuhin();
+        render();
+        showUndo((existingBar.label||'バー')+'のバーを移動しました', ()=>{
+          proc.date = origDate;
+          proc.ampm = origAmpm;
+          proc.days = origDays;
+          if(rowChanged){
+            if(hadLane) laneAssign[procId] = origLane; else delete laneAssign[procId];
+            saveLaneAssign();
+          }
+          saveBuhinState();
+          refreshFromBuhin();
+          render();
+        });
+      }else{
+        if(rowChanged){
+          laneAssign[existingBar.procId] = curRow;
+          saveLaneAssign();
+        }
+        saveBuhinState();
+        refreshFromBuhin();
+        render();
+      }
+      drag = null;
+      return;
+    }
+
+    let bar;
+    if(finalKey !== key){
+      const idx = (barsData[key]||[]).findIndex(b=>b.id===rangeId);
+      if(idx !== -1){
+        bar = barsData[key].splice(idx,1)[0];
+        bar.start = working.start; bar.end = working.end;
+        barsData[finalKey] = barsData[finalKey] || [];
+        barsData[finalKey].push(bar);
+      }
+    }else{
+      bar = (barsData[key]||[]).find(b=>b.id===rangeId);
+      if(bar){ bar.start = working.start; bar.end = working.end; }
+    }
+    if(!handoff) saveLegacyBars();
+    render();
+    if(mode==='create' && bar && !bar.label){
+      const barEl = ganttInner.querySelector('[data-range="'+rangeId+'"]');
+      if(barEl) openLabelPicker(finalKey, rangeId, '', barEl.getBoundingClientRect(), true);
+    }else if(bar && orig){
+      // 元に戻す用に、移動前のキー（段）・位置を控えておく
+      const undoKey = key, undoFinalKey = finalKey, undoRangeId = rangeId;
+      const undoOrigStart = orig.start, undoOrigEnd = orig.end, undoLabel = bar.label;
+      showUndo((undoLabel||'バー')+'のバーを移動しました', ()=>{
+        if(undoFinalKey !== undoKey){
+          const idx2 = (barsData[undoFinalKey]||[]).findIndex(b=>b.id===undoRangeId);
+          if(idx2 !== -1){
+            const b2 = barsData[undoFinalKey].splice(idx2,1)[0];
+            b2.start = undoOrigStart; b2.end = undoOrigEnd;
+            barsData[undoKey] = barsData[undoKey] || [];
+            barsData[undoKey].push(b2);
+          }
+        }else{
+          const b2 = (barsData[undoKey]||[]).find(b=>b.id===undoRangeId);
+          if(b2){ b2.start = undoOrigStart; b2.end = undoOrigEnd; }
+        }
+        if(!handoff) saveLegacyBars();
+        render();
+      });
+    }
+    drag = null;
+  });
+
+  ganttInner.addEventListener('dblclick', (e)=>{
+    const barEl = e.target.closest('[data-range]');
+    if(!barEl) return;
+    const trackEl = barEl.closest('[data-role="track"]');
+    const key = trackEl.dataset.part+'_'+trackEl.dataset.row;
+    const bar = (barsData[key]||[]).find(b=>b.id===barEl.dataset.range);
+    if(!bar) return;
+    const gotoProc = matchProcGantt(bar.label);
+    if(gotoProc){
+      // このタブ内で該当工程の日程表へ移動する。window.open()はfile://間で"unsafe"としてブロックされるため、同じタブでの遷移にしてある
+      // 品番をURLに乗せておくと、遷移先の左上「← 個別日程表へ」でこの画面にそのまま戻れる
+      location.href = gotoProc.file + (urlProductNo ? ('?productNo='+encodeURIComponent(urlProductNo)) : '');
+      return;
+    }
+    openLabelPicker(key, bar.id, bar.label, barEl.getBoundingClientRect(), false);
+  });
+
+  // ---- A3印刷：印刷前に表示期間・ズームを整えてもらい、そのままブラウザの印刷ダイアログを開く ----
+  const printBtnEl = document.getElementById('printBtn');
+  if(printBtnEl) printBtnEl.addEventListener('click', ()=> window.print());
+
+  // ---- 印刷時、列方向（横幅）・行方向（縦の長さ）の両方を自動で詰めてA3の1枚に収まるように縮小する ----
+  // A3横向き・余白10mmを想定した印刷可能サイズ（96dpi換算）。
+  const PRINT_TARGET_WIDTH = 1910;
+  const PRINT_TARGET_HEIGHT = 1300;
+  let printScaleApplied = false;
+  function applyPrintScale(){
+    const headerInner = document.getElementById('ganttHeaderInner');
+    const inner = document.getElementById('ganttInner');
+    const checkInner = document.getElementById('checkInner');
+    if(!inner) return;
+
+    // 倍率をかける前（=等倍）の自然な幅・高さを測る
+    const naturalWidth = inner.scrollWidth || inner.offsetWidth;
+    if(!naturalWidth) return;
+    const naturalHeaderH = headerInner ? (headerInner.scrollHeight || headerInner.offsetHeight) : 0;
+    const naturalBodyH = inner.scrollHeight || inner.offsetHeight;
+    const naturalCheckH = checkInner ? (checkInner.scrollHeight || checkInner.offsetHeight) : 0;
+
+    // ズーム対象外の部分（受注情報カード・進捗チェックの見出し・凡例・カード同士の余白など）が占める高さ
+    const orderCardEl = document.getElementById('orderCard');
+    const legendEl = document.getElementById('legend');
+    const checkTitleEl = document.querySelector('.checkCardTitle');
+    const fixedH =
+      (orderCardEl ? orderCardEl.offsetHeight : 0) +
+      (legendEl ? legendEl.offsetHeight : 0) +
+      (checkTitleEl ? checkTitleEl.offsetHeight : 0) +
+      90; // カード間の余白・ボーダー等の概算バッファ
+
+    // 内容がA3より小さい時は縮小するだけでなく拡大もして、余白を残さず1枚いっぱいに使う（拡大しすぎないよう上限3倍）
+    const MAX_SCALE = 3;
+    const widthScale = Math.min(MAX_SCALE, PRINT_TARGET_WIDTH / naturalWidth);
+    const scalableNaturalH = naturalHeaderH + naturalBodyH + naturalCheckH;
+    const availableForScalable = Math.max(100, PRINT_TARGET_HEIGHT - fixedH);
+    const heightScale = scalableNaturalH > 0 ? Math.min(MAX_SCALE, availableForScalable / scalableNaturalH) : 1;
+
+    const scale = Math.min(widthScale, heightScale);
+    [headerInner, inner, checkInner].forEach(el=>{
+      if(el) el.style.zoom = scale;
+    });
+    printScaleApplied = true;
+  }
+  function clearPrintScale(){
+    if(!printScaleApplied) return;
+    ['ganttHeaderInner','ganttInner','checkInner'].forEach(id=>{
+      const el = document.getElementById(id);
+      if(el) el.style.zoom = '';
+    });
+    printScaleApplied = false;
+  }
+  window.addEventListener('beforeprint', applyPrintScale);
+  window.addEventListener('afterprint', clearPrintScale);
+
+  // ---- 自由配置メモ（吹き出し）：追加ボタン・ドラッグ移動・リサイズ・テキスト編集・右クリック削除（元に戻す対応） ----
+  document.getElementById('addMemoBtn').addEventListener('click', ()=>{
+    const id = uid();
+    memos.push({ id, x: ganttScrollEl.scrollLeft+24, y:24, w:180, h:92, text:'' });
+    saveMemos();
+    render();
+    const bodyEl = ganttInner.querySelector('.memoNote[data-memo-id="'+id+'"] [data-role="memoBody"]');
+    if(bodyEl) bodyEl.focus();
+  });
+
+  let memoDrag = null; // { type:'move'|'resize'|'tail', id, startClientX, startClientY, orig:{x,y,w,h,tailX,tailY} }
+  ganttInner.addEventListener('mousedown', (e)=>{
+    const targetHandle = e.target.closest('[data-role="memoHandle"], [data-role="memoResize"], [data-role="memoTailHandle"]');
+    if(!targetHandle) return;
+    const memo = memos.find(m=>m.id===targetHandle.dataset.memoId);
+    if(!memo) return;
+    e.preventDefault();
+    ensureMemoTail(memo);
+    const role = targetHandle.dataset.role;
+    const type = role==='memoTailHandle' ? 'tail' : (role==='memoHandle' ? 'move' : 'resize');
+    memoDrag = { type, id: memo.id, startClientX: e.clientX, startClientY: e.clientY,
+      orig:{ x:memo.x, y:memo.y, w:memo.w, h:memo.h, tailX:memo.tailX, tailY:memo.tailY } };
+  });
+  document.addEventListener('mousemove', (e)=>{
+    if(!memoDrag) return;
+    const memo = memos.find(m=>m.id===memoDrag.id);
+    if(!memo) return;
+    const dx = e.clientX - memoDrag.startClientX;
+    const dy = e.clientY - memoDrag.startClientY;
+    const noteEl = ganttInner.querySelector('.memoNote[data-memo-id="'+memoDrag.id+'"]');
+    if(memoDrag.type==='move'){
+      memo.x = Math.max(0, memoDrag.orig.x + dx);
+      memo.y = Math.max(0, memoDrag.orig.y + dy);
+      // 先端（矢印の的）も本体と一緒に動かす。本体だけ動かすと矢印が伸びきっておかしな形になるため、
+      // 矢印の向き・長さは保ったまま平行移動する（先端だけ動かしたい時はtailHandleを直接つかむ）
+      memo.tailX = memoDrag.orig.tailX + dx;
+      memo.tailY = memoDrag.orig.tailY + dy;
+      if(noteEl){ noteEl.style.left = memo.x+'px'; noteEl.style.top = memo.y+'px'; }
+      updateMemoTailVisual(memo);
+    }else if(memoDrag.type==='resize'){
+      memo.w = Math.max(90, memoDrag.orig.w + dx);
+      memo.h = Math.max(56, memoDrag.orig.h + dy);
+      if(noteEl){ noteEl.style.width = memo.w+'px'; noteEl.style.height = memo.h+'px'; }
+      updateMemoTailVisual(memo);
+    }else if(memoDrag.type==='tail'){
+      memo.tailX = memoDrag.orig.tailX + dx;
+      memo.tailY = memoDrag.orig.tailY + dy;
+      updateMemoTailVisual(memo);
+    }
+  });
+  document.addEventListener('mouseup', ()=>{
+    if(!memoDrag) return;
+    memoDrag = null;
+    saveMemos();
+  });
+  ganttInner.addEventListener('input', (e)=>{
+    const bodyEl = e.target.closest('[data-role="memoBody"]');
+    if(!bodyEl) return;
+    const noteEl = bodyEl.closest('.memoNote');
+    const memo = memos.find(m=>m.id===noteEl.dataset.memoId);
+    if(memo){ memo.text = bodyEl.value; saveMemos(); }
+  });
+
+  // ---- DE/SU/PNなど「日程だけ」の欄をここから直接編集できるようにする（作業票側のprocesses[].dateに直接書き戻す） ----
+  ganttInner.addEventListener('change', (e)=>{
+    const inputEl = e.target.closest('[data-role="dateTagInput"]');
+    if(!inputEl || !handoff) return;
+    const procId = inputEl.dataset.procid;
+    if(!procId) return;
+    let found = false;
+    (buhinState.parts||[]).forEach(p=>{
+      (p.processes||[]).forEach(proc=>{
+        if(proc.id === procId){ proc.date = inputEl.value; found = true; }
+      });
+    });
+    if(found){
+      saveBuhinState();
+      refreshFromBuhin();
+      render();
+    }
+  });
+
+  const memoCtxMenu = document.getElementById('memoCtxMenu');
+  const ctxDeleteMemo = document.getElementById('ctxDeleteMemo');
+  let ctxMemoTarget = null;
+  function openMemoCtxMenu(x, y){
+    memoCtxMenu.classList.add('open');
+    const menuW = 140;
+    let left = x, top = y;
+    if(left + menuW > window.innerWidth - 10) left = window.innerWidth - menuW - 10;
+    if(left < 10) left = 10;
+    memoCtxMenu.style.left = left+'px';
+    memoCtxMenu.style.top = top+'px';
+  }
+  function closeMemoCtxMenu(){
+    memoCtxMenu.classList.remove('open');
+    ctxMemoTarget = null;
+  }
+  ganttInner.addEventListener('contextmenu', (e)=>{
+    const noteEl = e.target.closest('.memoNote');
+    if(!noteEl) return;
+    e.preventDefault();
+    ctxMemoTarget = noteEl.dataset.memoId;
+    openMemoCtxMenu(e.clientX, e.clientY);
+  });
+  document.addEventListener('click', (e)=>{
+    if(!memoCtxMenu.classList.contains('open')) return;
+    if(memoCtxMenu.contains(e.target)) return;
+    closeMemoCtxMenu();
+  });
+  window.addEventListener('scroll', closeMemoCtxMenu, true);
+  ctxDeleteMemo.addEventListener('click', ()=>{
+    if(!ctxMemoTarget) return;
+    const idx = memos.findIndex(m=>m.id===ctxMemoTarget);
+    closeMemoCtxMenu();
+    if(idx===-1) return;
+    const snapshot = JSON.parse(JSON.stringify(memos[idx]));
+    memos.splice(idx,1);
+    saveMemos();
+    render();
+    showUndo('メモを削除しました', ()=>{
+      memos.splice(Math.min(idx, memos.length), 0, snapshot);
+      saveMemos();
+      render();
+    });
+  });
+
+  // ---- 作業票など、同じ品番のデータを共有する別タブでの変更をリアルタイムに反映する ----
+  if(handoff){
+    window.addEventListener('storage', (e)=>{
+      if(e.key === CONFIRM_KEY){
+        confirmState = loadConfirm();
+        drag = null;
+        render();
+        return;
+      }
+      if(e.key !== BUHIN_KEY) return;
+      if(e.newValue == null) return;
+      drag = null; // 操作中に外部変更が来た場合は混乱を避けるため今のドラッグは破棄する
+      try{ buhinState = JSON.parse(e.newValue); }catch(err){ return; }
+      refreshFromBuhin();
+      renderOrderCard();
+      render();
+    });
+  }
+})();
+</script>
+</body>
+</html>

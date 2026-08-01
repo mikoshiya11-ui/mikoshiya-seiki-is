@@ -1,0 +1,1521 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MIKOSHIYA SEIKI-iS｜㈱ミコシヤ 生産管理システム</title>
+<style>
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh; background:#fff; color:#1a2233;
+    font-family:"Hiragino Sans","Yu Gothic",-apple-system,BlinkMacSystemFont,sans-serif;
+    display:flex; flex-direction:column; align-items:center;
+  }
+
+  /* ---- ヘッダー行（右上メニューっぽい飾り） ---- */
+  .topbar{
+    width:100%; display:flex; justify-content:flex-end; gap:18px;
+    padding:16px 24px; font-size:12.5px; color:#5b6b84; flex:0 0 auto;
+  }
+  .topbar span{ cursor:default; }
+  #lastUpdatedLabel{ color:#8592a6; font-size:11.5px; }
+
+  /* ---- 中央ヒーローエリア ---- */
+  .hero{
+    width:100%; max-width:640px; display:flex; flex-direction:column; align-items:center;
+    padding:64px 20px 10px; flex:0 0 auto; transition:padding .25s ease;
+  }
+  .hero.compact{ padding:32px 20px 6px; }
+
+  .logo{
+    margin:0 0 6px; display:flex; align-items:center; justify-content:center; user-select:none;
+  }
+  .logo img{ height:320px; width:auto; display:block; transition:height .25s ease; }
+  .hero.compact .logo img{ height:130px; }
+
+  .tagline{ font-size:13px; color:#8592a6; margin:0 0 28px; letter-spacing:.02em; }
+  .hero.compact .tagline{ display:none; }
+
+  .searchWrap{ width:100%; position:relative; }
+  .searchBox{
+    width:100%; max-width:360px; margin:0 auto; display:flex; align-items:center; gap:7px;
+    border:1px solid #dfe4ec; border-radius:0; padding:7px 14px;
+    box-shadow:0 1px 6px rgba(20,35,70,.06); transition:box-shadow .15s, border-color .15s;
+  }
+  .searchBox:focus-within{ box-shadow:0 2px 12px rgba(20,35,70,.16); border-color:#c3cbdb; }
+  .searchBox .icon{ color:#8592a6; font-size:13px; }
+  .searchBox input{
+    flex:1; border:none; outline:none; font-size:12.5px; font-family:inherit; color:#1a2233;
+  }
+  .searchBox .clearBtn{
+    border:none; background:none; color:#b7c1d1; font-size:13px; cursor:pointer; padding:2px 4px; display:none;
+  }
+  .searchBox .clearBtn.show{ display:inline-block; }
+
+  .btnRow{ display:flex; gap:12px; margin-top:24px; flex-wrap:wrap; justify-content:center; }
+  .btn{
+    border:none; border-radius:0; padding:10px 20px; font-size:13.5px; font-weight:600;
+    cursor:pointer; font-family:inherit; transition:filter .15s, transform .1s, box-shadow .15s;
+    box-shadow:0 3px 8px rgba(20,35,70,.22);
+  }
+  .btn:hover{ box-shadow:0 5px 12px rgba(20,35,70,.28); }
+  .btn:active{ transform:translateY(1px); box-shadow:0 1px 3px rgba(20,35,70,.22); }
+  .btn.primary{ background:#173a68; color:#fff; }
+  .btn.primary:hover{ filter:brightness(1.12); }
+  .btn.accent{ background:#e67e22; color:#fff; }
+  .btn.accent:hover{ filter:brightness(1.08); }
+  .btn.ghost{ background:#f2f4f8; color:#3a4a63; }
+  .btn.ghost:hover{ background:#e8ecf3; }
+
+  .linkRow{ display:flex; gap:10px; margin-top:20px; flex-wrap:wrap; justify-content:center; }
+  .linkRow a.zanpinLink{
+    border:1px solid #f0a35c; background:#fff7ec; color:#c9720d; border-radius:0;
+    padding:5px 14px; font-size:11.5px; cursor:pointer; font-family:inherit; text-decoration:none;
+    font-weight:700; display:inline-flex; align-items:center;
+    box-shadow:0 2px 6px rgba(20,35,70,.12); transition:box-shadow .15s, background .15s, border-color .15s;
+  }
+  .linkRow a.zanpinLink:hover{ background:#ffedd6; border-color:#e67e22; box-shadow:0 3px 9px rgba(20,35,70,.16); }
+
+  .quickLinks{ display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; justify-content:center; }
+  .quickLinks button{
+    border:1px solid #e6eaf1; background:#fff; color:#5b6b84; border-radius:0;
+    padding:5px 14px; font-size:11.5px; cursor:pointer; font-family:inherit;
+    box-shadow:0 2px 6px rgba(20,35,70,.12); transition:box-shadow .15s, background .15s, border-color .15s;
+  }
+  .quickLinks button:hover{ background:#f7f9fc; border-color:#c3cbdb; box-shadow:0 3px 9px rgba(20,35,70,.16); }
+  .quickLinks button.active{ background:#173a68; color:#fff; border-color:#173a68; box-shadow:0 2px 6px rgba(20,35,70,.28); }
+
+  /* ---- 検索結果 ---- */
+  .resultsArea{
+    width:100%; max-width:860px; padding:20px 20px 60px; flex:1 0 auto;
+  }
+  .resultsMetaRow{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0 0 12px 4px; }
+  .resultsMeta{ font-size:12px; color:#8592a6; margin:0; }
+  #exportCsvBtn{
+    border:1px solid #e6eaf1; background:#fff; color:#5b6b84; border-radius:0;
+    padding:5px 14px; font-size:11.5px; cursor:pointer; font-family:inherit; display:none; white-space:nowrap;
+    box-shadow:0 2px 6px rgba(20,35,70,.12); transition:box-shadow .15s, background .15s, border-color .15s;
+  }
+  #exportCsvBtn:hover{ background:#f7f9fc; border-color:#c3cbdb; box-shadow:0 3px 9px rgba(20,35,70,.16); }
+  .resultGrid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(260px,1fr)); gap:14px; }
+  .card{
+    border:1px solid #e6eaf1; border-radius:0; padding:14px 16px; cursor:pointer;
+    background:#fff; transition:box-shadow .15s, border-color .15s, transform .1s;
+    box-shadow:0 3px 10px rgba(20,35,70,.1);
+  }
+  .card:hover{ box-shadow:0 6px 18px rgba(20,35,70,.16); border-color:#c3cbdb; transform:translateY(-1px); }
+  .card .cardTop{ display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+  .card .productNo{ font-size:15px; font-weight:700; color:#173a68; }
+  .badge{
+    font-size:10px; font-weight:700; padding:3px 8px; border-radius:10px; white-space:nowrap;
+  }
+  .badge.inprogress{ background:#fff3e0; color:#c9720d; }
+  .badge.done{ background:#e5f6ea; color:#1e8449; }
+  .badge.template{ background:#eef3fa; color:#173a68; }
+  .cardTop .badgeRow{ display:flex; gap:6px; flex-wrap:wrap; align-items:center; justify-content:flex-end; }
+  .card .modelName{ font-size:13px; color:#1a2233; margin-top:6px; font-weight:600; }
+  .card .meta{ font-size:11.5px; color:#7a879c; margin-top:4px; line-height:1.6; }
+  .card .meta b{ color:#3a4a63; }
+  .cardDelBtn{
+    flex:0 0 auto; width:18px; height:18px; border:none; border-radius:50%; padding:0;
+    background:rgba(192,57,43,.08); color:#c0392b; font-size:10px; line-height:18px; text-align:center;
+    cursor:pointer; font-family:inherit; opacity:0; transition:opacity .15s, background .15s, color .15s;
+  }
+  .card:hover .cardDelBtn{ opacity:1; }
+  .cardDelBtn:hover{ background:#c0392b; color:#fff; }
+
+  .emptyState{ text-align:center; color:#a4adbc; font-size:13px; padding:40px 0; }
+
+  /* ---- 新規作成モーダル ---- */
+  .overlay{
+    position:fixed; inset:0; background:rgba(20,35,70,.42); z-index:100;
+    display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  .modal{
+    background:#fff; border-radius:16px; width:100%; max-width:720px; max-height:88vh; overflow:auto;
+    box-shadow:0 20px 60px rgba(20,35,70,.35);
+  }
+  .modal.modalWide{ max-width:920px; }
+  .modal .mHead{
+    position:sticky; top:0; background:linear-gradient(120deg,#173a68,#2a5aa0); color:#fff;
+    padding:16px 24px; display:flex; justify-content:space-between; align-items:center; z-index:2;
+  }
+  .modal .mHead h3{ margin:0; font-size:16px; }
+  .modal .mHead button{
+    background:rgba(255,255,255,.18); border:none; color:#fff; width:28px; height:28px;
+    border-radius:7px; cursor:pointer; font-size:15px;
+  }
+  .modal .mBody{ padding:20px 24px; }
+  .fieldGrid{ display:grid; grid-template-columns:1fr 1fr; gap:14px 18px; }
+  .field{ display:flex; flex-direction:column; gap:5px; }
+  .field.full{ grid-column:1 / -1; }
+  .field label{ font-size:11.5px; font-weight:700; color:#5b6b84; }
+  .field label .req{ color:#e05252; margin-left:2px; }
+  .field input, .field select, .field textarea{
+    border:1px solid #dfe4ec; border-radius:7px; padding:8px 10px; font-size:13px;
+    font-family:inherit; color:#1a2233; outline:none;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus{ border-color:#2a5aa0; }
+  .field textarea{ resize:vertical; min-height:56px; }
+  .sectionLabel{
+    grid-column:1 / -1; font-size:12px; font-weight:700; color:#173a68; margin-top:6px;
+    border-bottom:1px solid #e6eaf1; padding-bottom:6px;
+  }
+  .modal .mFoot{
+    padding:14px 24px 22px; display:flex; justify-content:flex-end; gap:10px;
+  }
+
+  /* ---- 受注連絡書フォーム：区分見出し・注記 ---- */
+  .formSection{ margin-top:4px; }
+  .formSectionHead{
+    display:flex; align-items:baseline; gap:8px; font-size:13px; font-weight:700; color:#fff;
+    background:#173a68; padding:7px 12px; border-radius:6px 6px 0 0; margin-top:22px;
+  }
+  .formSectionHead .sub{ font-size:11px; font-weight:400; color:#c9d6ea; }
+  .formSectionBody{
+    border:1px solid #e6eaf1; border-top:none; border-radius:0 0 8px 8px; padding:14px 14px 16px;
+  }
+
+  /* ---- ラジオピル群 ---- */
+  .pillGroup{ display:flex; gap:6px; flex-wrap:wrap; }
+  .pillGroup label{
+    display:flex; align-items:center; gap:5px; border:1px solid #dfe4ec; border-radius:7px;
+    padding:6px 11px; font-size:12.5px; color:#3a4a63; cursor:pointer; font-weight:500;
+  }
+  .pillGroup input{ margin:0; accent-color:#173a68; }
+  .pillGroup label:has(input:checked){ border-color:#173a68; background:#eef3fa; color:#173a68; font-weight:700; }
+
+  /* ---- 見積・変動費 ミニテーブル ---- */
+  .sTable{ width:100%; border-collapse:collapse; font-size:12px; }
+  .sTable th{
+    background:#f2f4f8; color:#5b6b84; font-weight:700; padding:6px 6px; border:1px solid #e6eaf1; text-align:center;
+  }
+  .sTable td{ border:1px solid #eef1f6; padding:4px 5px; }
+  .sTable td.rowLabel{ font-weight:700; color:#3a4a63; white-space:nowrap; padding-left:8px; }
+  .sTable input{
+    width:100%; border:1px solid #dfe4ec; border-radius:5px; padding:5px 6px; font-size:12px;
+    font-family:inherit; outline:none; box-sizing:border-box;
+  }
+  .sTable input:focus{ border-color:#2a5aa0; }
+  .sTable input.numCell{ text-align:right; }
+  .sTable tfoot td{ background:#fafbfd; font-weight:700; color:#173a68; }
+  .sTable .totalVal{ text-align:right; padding-right:10px; }
+  .colTilde{ text-align:center; color:#b7c1d1; padding:0 2px; width:14px; }
+
+  /* ---- 受注連絡書：紙帳票風レイアウト ---- */
+  .modal.modalPaper{ max-width:980px; }
+  .pfWrap{
+    border:1.5px solid #222; font-size:11px; color:#1a1a1a; line-height:1.4;
+    font-family:"Hiragino Sans","Yu Gothic",sans-serif;
+  }
+  .pfHeaderRow{ display:flex; border-bottom:1.5px solid #222; }
+  .pfHeaderLeft{ flex:1; padding:10px 14px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; min-width:0; }
+  .pfTBox{ flex:0 0 auto; align-self:flex-start; display:flex; border:1.3px solid #333; margin:8px 0 0 12px; }
+  .pfTBox .pfTBoxLabel{ background:#eef0f3; padding:4px 8px; font-weight:700; font-size:11px; border-right:1.3px solid #333; display:flex; align-items:center; }
+  .pfTBox input{ width:46px; border:none; outline:none; padding:4px 6px; font-size:11px; font-family:inherit; background:transparent; }
+  .pfTitle{ font-size:19px; font-weight:800; letter-spacing:.08em; border-bottom:2px solid #173a68; padding-bottom:3px; }
+  .pfStatusRow{ display:flex; gap:14px; }
+  .pfHeaderRight{ width:360px; border-left:1.5px solid #222; display:flex; flex-direction:column; }
+  .pfApprovalTable{ width:100%; border-collapse:collapse; }
+  .pfApprovalTable th{ font-size:9.5px; font-weight:700; color:#444; background:#f2f4f8; border:1px solid #999; padding:3px 2px; }
+  .pfApprovalTable td{ border:1px solid #999; padding:2px; height:34px; }
+  .pfApprovalTable td input{ width:100%; border:none; background:transparent; font-size:10.5px; text-align:center; outline:none; }
+  .pfIssueDates{ display:flex; align-items:center; gap:6px; padding:5px 8px; border-top:1px solid #999; font-size:10px; }
+  .pfIssueDates .pfIssueNo{ font-weight:700; color:#173a68; }
+  .pfIssueDates input[type=date]{ border:none; border-bottom:1px solid #999; font-size:10px; padding:1px 2px; outline:none; width:118px; }
+  .pfIssueDates .pfIssueLabel{ margin-left:auto; font-weight:700; color:#5b6b84; }
+
+  .pfRow{ display:flex; border-bottom:1.5px solid #222; }
+  .pfRow:last-of-type{ border-bottom:none; }
+  .pfSideLabel{
+    writing-mode:vertical-rl; text-orientation:upright; background:#eef0f3; border-right:1.5px solid #222;
+    padding:10px 5px; font-weight:700; font-size:11px; letter-spacing:3px; display:flex; align-items:center; justify-content:center;
+    flex:0 0 30px;
+  }
+  .pfSectionBody{ flex:1; padding:8px 10px; }
+  .pfLine{ display:flex; flex-wrap:wrap; gap:10px 18px; align-items:center; padding:4px 0; border-bottom:1px dashed #dfe4ec; }
+  .pfLine:last-child{ border-bottom:none; }
+  .pfLabel{ font-size:10px; font-weight:700; color:#5b6b84; white-space:nowrap; }
+  .pfSubLabel{ font-size:9px; color:#98a3b3; white-space:nowrap; margin-left:2px; }
+  .pfField{ display:flex; align-items:center; gap:5px; }
+  .pfField.grow{ flex:1; min-width:180px; }
+  .pfField input[type=text], .pfField input[type=date], .pfField input[type=number], .pfField textarea{
+    border:none; border-bottom:1px solid #98a3b3; background:transparent; font-size:11px; padding:2px 3px;
+    outline:none; font-family:inherit; min-width:0;
+  }
+  .pfField.grow input, .pfField.grow textarea{ flex:1; }
+  .pfField textarea{ resize:vertical; min-height:30px; width:100%; }
+  /* 本票以外資料・変動費摘要の見積金額・設計日程の見積工数は上下の増減ボタンを消し、直接入力だけにする */
+  #f_extraDocs, .costAmtInput, .designAmtInput{ -moz-appearance:textfield; appearance:textfield; }
+  #f_extraDocs::-webkit-outer-spin-button, #f_extraDocs::-webkit-inner-spin-button,
+  .costAmtInput::-webkit-outer-spin-button, .costAmtInput::-webkit-inner-spin-button,
+  .designAmtInput::-webkit-outer-spin-button, .designAmtInput::-webkit-inner-spin-button{
+    -webkit-appearance:none; margin:0;
+  }
+  .pfCheckRow{ display:flex; gap:14px; flex-wrap:wrap; }
+  .pfCheck{ display:inline-flex; align-items:center; gap:4px; font-size:10.5px; cursor:pointer; white-space:nowrap; color:#2a3446; }
+  .pfCheck input{ display:none; }
+  .pfCheck .box{
+    width:12px; height:12px; border:1.3px solid #333; flex:0 0 auto; display:inline-flex; align-items:center; justify-content:center;
+    font-size:10px; font-weight:900; color:#173a68; line-height:1;
+  }
+  .pfCheck .box::after{ content:''; }
+  .pfCheck:has(input:checked) .box::after{ content:'✓'; }
+  .pfCheck:has(input:checked){ font-weight:700; color:#173a68; }
+
+  .pfTable{ width:100%; border-collapse:collapse; font-size:10.5px; margin-top:4px; }
+  .pfTable th{ background:#f2f4f8; border:1px solid #999; padding:3px 4px; font-weight:700; color:#3a4a63; }
+  .pfTable td{ border:1px solid #ccd2dc; padding:2px 3px; }
+  .pfTable td.pfRowName{ font-weight:700; color:#3a4a63; white-space:nowrap; text-align:center; background:#fafbfd; }
+  .pfTable input{ width:100%; border:none; background:transparent; font-size:10.5px; padding:2px 3px; outline:none; font-family:inherit; }
+  .pfTable input.numCell{ text-align:right; }
+  .pfTable td.pfTilde{ text-align:center; color:#b7c1d1; width:12px; padding:0; }
+  .pfTable tfoot td{ background:#f7f9fc; font-weight:700; color:#173a68; }
+  .pfSectionTitle{ font-size:10.5px; font-weight:700; color:#5b6b84; margin-top:8px; }
+
+  .pfSidebar{ width:150px; flex:0 0 auto; border-left:1.5px solid #222; padding:0 0 0 10px; margin-left:6px; }
+  .pfSidebarHead{ text-align:center; font-weight:700; font-size:10.5px; border-bottom:1px solid #999; padding-bottom:4px; margin-bottom:4px; }
+  .pfSidebarItem{ border-bottom:1px dashed #dfe4ec; padding:5px 2px; font-size:10px; }
+  .pfSidebarItem .siName{ font-weight:700; color:#3a4a63; }
+  .pfSidebarItem .siRange{ color:#7a879c; margin-top:2px; }
+  .pfProfitBox{ border:1.5px solid #222; margin-top:8px; }
+  .pfProfitBox .pfProfitHead{ background:#173a68; color:#fff; text-align:center; font-size:10.5px; font-weight:700; padding:3px; }
+  .pfProfitBox .pfProfitBody{ display:flex; align-items:center; gap:4px; padding:6px 8px; font-size:13px; font-weight:700; color:#173a68; }
+  .pfProfitBox input{
+    border:none; text-align:right; font-size:13px; font-weight:700; color:#173a68; outline:none;
+    flex:1; min-width:0; width:100%; max-width:100%; box-sizing:border-box; font-family:inherit;
+  }
+
+  .pfFooter{ padding:8px 12px; font-size:9.5px; color:#7a879c; border-top:1px solid #ccd2dc; line-height:1.7; }
+
+  @media print{
+    @page{ size:A4 portrait; margin:6mm; }
+    body > *:not(#newOverlay){ display:none !important; }
+    #newOverlay{ position:static; background:#fff; padding:0; display:block; inset:auto; }
+    #newOverlay .modal{ box-shadow:none; max-width:100%; max-height:none; border-radius:0; overflow:visible; }
+    #newOverlay .mHead, #newOverlay .mFoot{ display:none; }
+    #newOverlay .mBody{ padding:0; overflow:visible; }
+    /* 用紙1枚に収めるため、フォントを少し小さくしつつ各所の余白を詰める（縮小しすぎると下に余白ができるのでzoomは使わない） */
+    .pfWrap{ font-size:10px; }
+    .pfLine{ padding:2px 0; gap:6px 14px; }
+    .pfSectionBody{ padding:5px 8px; }
+    .pfHeaderLeft{ padding:6px 10px; gap:5px; }
+    .pfTBox{ margin:5px 0 0 8px; }
+    .pfApprovalTable td{ height:20px; }
+    .pfIssueDates{ padding:3px 8px; }
+    .pfTable th, .pfTable td{ padding:1px 3px; }
+    .pfSidebarItem{ padding:3px 2px; }
+    .pfField textarea{ min-height:18px; }
+    .pfFooter{ padding:5px 10px; font-size:8.5px; line-height:1.4; }
+    /* 空欄のままの入力欄に出る薄いグレーのプレースホルダー例示文字（工程名を入力／任意 など）は印刷では非表示にする */
+    #newOverlay input::placeholder, #newOverlay textarea::placeholder{ color:transparent !important; }
+  }
+
+  /* ---- 詳細パネル ---- */
+  .detailBody .drow{ display:flex; padding:8px 0; border-bottom:1px solid #eef1f6; font-size:13px; }
+  .detailBody .drow .dk{ flex:0 0 140px; color:#7a879c; }
+  .detailBody .drow .dv{ flex:1; color:#1a2233; font-weight:500; }
+  .noteBox{
+    background:#fef6e8; border:1px solid #f3dfae; border-radius:8px; padding:10px 14px;
+    font-size:12px; color:#8a6a1f; margin-top:16px; line-height:1.6;
+  }
+  .detailLinkRow{ margin-top:16px; }
+  .detailLinkRow .btn{ display:inline-block; text-decoration:none; }
+
+  /* ---- 直前の1操作だけ元に戻せるトースト通知（削除・ひな形解除などのやり直しに使う。ページを開いている間だけ有効） ---- */
+  .undoToast{
+    position:fixed; left:50%; bottom:24px; transform:translateX(-50%); z-index:9999;
+    background:#1a2233; color:#fff; border-radius:10px; padding:11px 16px; font-size:13px;
+    align-items:center; gap:14px; box-shadow:0 8px 28px rgba(0,0,0,.28); display:none;
+  }
+  .undoToast.show{ display:flex; }
+  .undoToast button{
+    border:none; background:#2c72c7; color:#fff; font-weight:700; font-size:12.5px; padding:6px 12px;
+    border-radius:6px; cursor:pointer; font-family:inherit; flex:0 0 auto;
+  }
+  .undoToast button:hover{ filter:brightness(1.1); }
+</style>
+<script src="システムファイル/_sakaeSupabaseConfig.js"></script>
+<script src="システムファイル/_sakaeSync.js"></script>
+</head>
+<body>
+
+  <div class="topbar"><span id="lastUpdatedLabel"></span><span>㈱ミコシヤ社内システム</span></div>
+
+  <div class="hero" id="hero">
+    <div class="logo"><img src="システムファイル/logo.png" alt="MIKOSHIYA SEIKI-iS"></div>
+    <div class="tagline">社内No.・受注案件をここから検索／新規作成</div>
+    <div class="searchWrap">
+      <div class="searchBox">
+        <span class="icon">&#128269;</span>
+        <input type="text" id="searchInput" placeholder="社内No.・客先名・型式名で検索" autocomplete="off">
+        <button class="clearBtn" id="clearBtn" title="クリア">&times;</button>
+      </div>
+    </div>
+    <div class="btnRow">
+      <button class="btn primary" id="searchBtn">検索</button>
+      <button class="btn accent" id="newBtn">＋ 新規作成</button>
+      <button class="btn ghost" id="templateBtn">📋 ひな形から作成</button>
+    </div>
+    <div class="linkRow">
+      <a class="zanpinLink" href="システムファイル/残品表_モック.html">工程別残品表 →</a>
+      <a class="zanpinLink" href="システムファイル/支給納品一覧_モック.html">支給・納品一覧 →</a>
+      <a class="zanpinLink" href="システムファイル/実績入力_モック.html">実績入力 →</a>
+    </div>
+    <div class="quickLinks" id="quickLinks">
+      <button data-filter="all" class="active">すべて</button>
+      <button data-filter="inprogress">進行中案件</button>
+      <button data-filter="done">完了案件(CSV出力)</button>
+    </div>
+    <div class="quickLinks" id="dataTransferRow" style="margin-top:6px;">
+      <button type="button" id="exportAllBtn" title="カードと、紐づく作業票・個別日程表のデータをまとめてJSONファイルに書き出します（別のパソコン・別のブラウザにデータを持っていく時に使います）">📤 データを書き出し（JSON）</button>
+      <button type="button" id="importAllBtn" title="書き出したJSONファイルを読み込んで、今この画面にある案件と全部入れ替えます">📥 データを読み込み（JSON）</button>
+      <input type="file" id="importFileInput" accept="application/json" style="display:none;">
+    </div>
+  </div>
+
+  <div class="resultsArea">
+    <div class="resultsMetaRow">
+      <div class="resultsMeta" id="resultsMeta"></div>
+      <button type="button" id="exportCsvBtn" title="「完了（過去制作分）」になっている案件をまとめてCSVでダウンロード">📄 完了案件をCSV書き出し</button>
+    </div>
+    <div class="resultGrid" id="resultGrid"></div>
+  </div>
+
+  <!-- 新規作成モーダル：受注連絡書(改)様式（紙帳票レイアウト再現） -->
+  <div class="overlay" id="newOverlay" style="display:none;">
+    <div class="modal modalPaper">
+      <div class="mHead">
+        <h3 id="newModalTitle">受注に関する連絡書　新規作成</h3>
+        <button id="closeNewBtn" type="button">&times;</button>
+      </div>
+      <div class="mBody">
+        <div class="pfWrap">
+
+          <!-- ヘッダー：タイトル・ステータス・承認欄・発行日 -->
+          <div class="pfHeaderRow">
+            <div class="pfTBox">
+              <span class="pfTBoxLabel">T</span>
+              <input type="text" id="f_tCode" maxlength="6">
+            </div>
+            <div class="pfHeaderLeft">
+              <div class="pfTitle">受注に関する連絡書</div>
+              <div class="pfStatusRow">
+                <label class="pfCheck"><input type="radio" name="f_status" value="検討" checked><span class="box"></span>検討</label>
+                <label class="pfCheck"><input type="radio" name="f_status" value="情報"><span class="box"></span>情報</label>
+                <label class="pfCheck"><input type="radio" name="f_status" value="確定"><span class="box"></span>確定</label>
+              </div>
+            </div>
+            <div class="pfHeaderRight">
+              <table class="pfApprovalTable">
+                <tr><th>製造責任者</th><th>営業責任者</th><th>設計責任者</th><th>起 票 者</th></tr>
+                <tr>
+                  <td><input type="text" id="f_mfgResp"></td>
+                  <td><input type="text" id="f_salesResp"></td>
+                  <td><input type="text" id="f_designResp"></td>
+                  <td><input type="text" id="f_drafter"></td>
+                </tr>
+              </table>
+              <div class="pfIssueDates">
+                <span class="pfIssueNo">①</span><input type="date" id="f_issueDate1">
+                <span class="pfIssueNo">②</span><input type="date" id="f_issueDate2">
+                <span class="pfIssueLabel">発行</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 区分：製品内容 -->
+          <div class="pfRow">
+            <div class="pfSideLabel">製 品 内 容</div>
+            <div class="pfSectionBody">
+              <div class="pfLine">
+                <div class="pfField"><span class="pfLabel">社内№<span class="req">*</span></span><input type="text" id="f_orderNo" style="width:140px;"></div>
+              </div>
+              <div class="pfLine">
+                <div class="pfField grow"><span class="pfLabel">客　先</span><input type="text" id="f_customer"></div>
+              </div>
+              <div class="pfLine">
+                <div class="pfCheckRow">
+                  <label class="pfCheck"><input type="radio" name="f_shikyu" value="要設計"><span class="box"></span>要設計</label>
+                  <label class="pfCheck"><input type="radio" name="f_shikyu" value="設計不要"><span class="box"></span>設計不要（図面支給・指示書のみ）</label>
+                </div>
+              </div>
+              <div class="pfLine">
+                <span class="pfLabel">品目</span>
+                <div class="pfCheckRow">
+                  <label class="pfCheck"><input type="radio" name="f_category" value="型" checked><span class="box"></span>型</label>
+                  <label class="pfCheck"><input type="radio" name="f_category" value="型部品"><span class="box"></span>型部品</label>
+                  <label class="pfCheck"><input type="radio" name="f_category" value="治具装置"><span class="box"></span>治具装置</label>
+                  <label class="pfCheck"><input type="radio" name="f_category" value="NEOTEC"><span class="box"></span>NEOTEC</label>
+                </div>
+                <span class="pfLabel" style="margin-left:8px;">科目</span>
+                <div class="pfCheckRow">
+                  <label class="pfCheck"><input type="radio" name="f_subject" value="新作" checked><span class="box"></span>新作</label>
+                  <label class="pfCheck"><input type="radio" name="f_subject" value="改造"><span class="box"></span>改造</label>
+                  <label class="pfCheck"><input type="radio" name="f_subject" value="修理"><span class="box"></span>修理</label>
+                  <label class="pfCheck"><input type="radio" name="f_subject" value="修正"><span class="box"></span>修正</label>
+                  <label class="pfCheck"><input type="radio" name="f_subject" value="芯出"><span class="box"></span>芯出</label>
+                  <label class="pfCheck"><input type="radio" name="f_subject" value="残工事"><span class="box"></span>残工事</label>
+                </div>
+              </div>
+              <div class="pfLine">
+                <div class="pfField"><span class="pfLabel">型式／図番</span><input type="text" id="f_modelName"></div>
+                <div class="pfField grow"><span class="pfLabel">品　名</span><input type="text" id="f_itemName"></div>
+              </div>
+              <div class="pfLine">
+                <div class="pfField"><span class="pfLabel">納　期</span><input type="date" id="f_dueDate"></div>
+                <div class="pfField"><span class="pfLabel">受注日</span><input type="date" id="f_orderDate"></div>
+                <div class="pfField"><span class="pfLabel">受注金額 ￥</span><input type="number" id="f_amount" style="width:90px;"></div>
+                <div class="pfField"><span class="pfLabel">込メ数</span><input type="text" id="f_komeSu" style="width:50px;">ヶ込</div>
+                <div class="pfField"><span class="pfLabel">数量</span><input type="text" id="f_qty" style="width:70px;"></div>
+                <div class="pfField"><span class="pfLabel">本票以外資料</span><input type="number" id="f_extraDocs" style="width:44px;">枚</div>
+                <div class="pfField">
+                  <span class="pfLabel">情報の場合 受注見込</span>
+                  <div class="pfCheckRow">
+                    <label class="pfCheck"><input type="radio" name="f_infoForecast" value="A"><span class="box"></span>Ａ</label>
+                    <label class="pfCheck"><input type="radio" name="f_infoForecast" value="B"><span class="box"></span>Ｂ</label>
+                    <label class="pfCheck"><input type="radio" name="f_infoForecast" value="C"><span class="box"></span>Ｃ</label>
+                  </div>
+                </div>
+              </div>
+              <div class="pfLine">
+                <div class="pfField grow"><span class="pfLabel">特記事項、担当コメント</span><textarea id="f_note"></textarea></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 区分：見積／日程（設計日程＋変動費摘要＋設計計画サイド＋見込利益） -->
+          <div class="pfRow">
+            <div class="pfSideLabel">見 積 ／ 日 程</div>
+            <div class="pfSectionBody" style="display:flex;">
+              <div style="flex:1; min-width:0;">
+                <table class="pfTable" id="designTable">
+                  <thead>
+                    <tr>
+                      <th style="width:90px;">工程名</th>
+                      <th style="width:56px;">見積工数</th>
+                      <th>開始</th>
+                      <th style="width:10px;"></th>
+                      <th>終了</th>
+                      <th>備考</th>
+                    </tr>
+                  </thead>
+                  <tbody id="designTbody"></tbody>
+                  <tfoot>
+                    <tr>
+                      <td class="pfRowName">計</td>
+                      <td style="text-align:right; padding-right:6px;" id="designTotalH">0.0</td>
+                      <td colspan="4"></td>
+                    </tr>
+                  </tfoot>
+                </table>
+                <button type="button" class="btn ghost" id="addDesignRowBtn" style="font-size:11px; padding:4px 10px; margin-top:4px;">＋ 行追加</button>
+
+                <div class="pfSectionTitle">変動費摘要</div>
+                <table class="pfTable" id="costTable">
+                  <thead>
+                    <tr>
+                      <th style="width:90px;">項目</th>
+                      <th style="width:80px;">見積金額</th>
+                      <th>開始</th>
+                      <th style="width:10px;"></th>
+                      <th>終了</th>
+                      <th>備考</th>
+                    </tr>
+                  </thead>
+                  <tbody id="costTbody"></tbody>
+                  <tfoot>
+                    <tr>
+                      <td class="pfRowName">計</td>
+                      <td style="text-align:right; padding-right:6px;" id="costTotal">0</td>
+                      <td colspan="4"></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              <div class="pfSidebar">
+                <div class="pfSidebarHead">設　計<br>計　画</div>
+                <div id="designSidebar"></div>
+                <div class="pfProfitBox">
+                  <div class="pfProfitHead">見 込 利 益</div>
+                  <div class="pfProfitBody">￥<input type="number" id="f_expectedProfit"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 区分：登録事項 -->
+          <div class="pfRow">
+            <div class="pfSideLabel">登 録 事 項</div>
+            <div class="pfSectionBody">
+              <div class="pfLine">
+                <span class="pfLabel">品種</span>
+                <div class="pfCheckRow">
+                  <label class="pfCheck"><input type="radio" name="f_hinshu" value="試作" checked><span class="box"></span>試作</label>
+                  <label class="pfCheck"><input type="radio" name="f_hinshu" value="号口"><span class="box"></span>号口</label>
+                </div>
+                <div class="pfField"><span class="pfLabel">ＭＢ仕様</span><input type="text" id="f_mbSpec"></div>
+              </div>
+              <div class="pfLine">
+                <div class="pfField"><span class="pfLabel">スライド数</span><input type="number" id="f_slideCount" style="width:50px;">ヶ</div>
+                <div class="pfField"><span class="pfLabel">キャビコア材質</span><input type="text" id="f_cavityMaterial"></div>
+                <div class="pfField"><span class="pfLabel">型板サイズ</span><input type="text" id="f_plateSize"></div>
+              </div>
+              <div class="pfLine">
+                <span class="pfLabel">型精度</span>
+                <div class="pfCheckRow">
+                  <label class="pfCheck"><input type="radio" name="f_precision" value="A" checked><span class="box"></span>Ａ</label>
+                  <label class="pfCheck"><input type="radio" name="f_precision" value="B"><span class="box"></span>Ｂ</label>
+                  <label class="pfCheck"><input type="radio" name="f_precision" value="C"><span class="box"></span>Ｃ</label>
+                </div>
+                <span class="pfLabel" style="margin-left:8px;">見切変化</span>
+                <div class="pfCheckRow">
+                  <label class="pfCheck"><input type="radio" name="f_partingChange" value="無" checked><span class="box"></span>無</label>
+                  <label class="pfCheck"><input type="radio" name="f_partingChange" value="有"><span class="box"></span>有</label>
+                </div>
+                <div class="pfField"><span class="pfLabel">形状面積</span><input type="text" id="f_shapeArea"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="pfFooter">
+            〈経路〉営業・設計（起票） → 営業責任者（承認） → 製造責任者（承認） → 生管（登録・ファイリング） → 起票者（原紙保管）<br>
+            コピー配布 → 設計＆製造責任者＆受注（品）検討会資料
+          </div>
+        </div>
+      </div>
+      <div class="mFoot">
+        <button class="btn ghost" id="printNewBtn" type="button" style="margin-right:auto;">🖨 印刷</button>
+        <button class="btn ghost" id="cancelNewBtn" type="button">キャンセル</button>
+        <button class="btn primary" id="saveNewBtn" type="button">この内容で登録</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 詳細パネル -->
+  <div class="overlay" id="detailOverlay" style="display:none;">
+    <div class="modal" style="max-width:560px;">
+      <div class="mHead">
+        <h3 id="detailTitle">案件詳細</h3>
+        <button id="closeDetailBtn" type="button">&times;</button>
+      </div>
+      <div class="mBody detailBody" id="detailBody"></div>
+      <div class="mFoot" style="justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+          <button class="btn ghost" id="templateToggleBtn" type="button">⭐ ひな形に登録</button>
+          <label style="font-size:12px;color:#5b6b84;display:flex;align-items:center;gap:6px;">
+            <input type="checkbox" id="f_toggleDone"> 完了（過去制作分）にする
+          </label>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button class="btn ghost" id="viewFormBtn" type="button">受注連絡書で表示</button>
+          <button class="btn ghost" id="closeDetailBtn2" type="button">閉じる</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ひな形ピッカー -->
+  <div class="overlay" id="templateOverlay" style="display:none;">
+    <div class="modal" style="max-width:680px;">
+      <div class="mHead">
+        <h3>ひな形から作成</h3>
+        <button id="closeTemplateBtn" type="button">&times;</button>
+      </div>
+      <div class="mBody">
+        <div style="font-size:12px;color:#7a879c;margin-bottom:14px;line-height:1.6;">
+          「⭐ ひな形に登録」した過去の案件から選ぶと、その内容を引き継いだ状態で新規作成フォームが開きます。社内No.・納期など新しい案件用に変わる項目だけ入力し直してください。
+        </div>
+        <div class="resultGrid" id="templateGrid"></div>
+        <div class="emptyState" id="templateEmptyState" style="display:none;">ひな形として登録された案件がまだありません。案件の詳細画面（カードをクリック）から「⭐ ひな形に登録」で登録できます。</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="undoToast" id="undoToast">
+    <span id="undoToastText"></span>
+    <button type="button" id="undoToastBtn">元に戻す</button>
+  </div>
+
+<script>
+(function(){
+  const STORAGE_KEY = 'sakaeIS_records_v1';
+
+  function uid(){ return Math.random().toString(36).slice(2,9); }
+
+  function loadRecords(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(raw) return JSON.parse(raw);
+    }catch(e){}
+    return [];
+  }
+  function saveRecords(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+    markUpdated();
+  }
+
+  // ---- 「このパソコンのデータがいつ更新されたか」を画面に出す。
+  // 出張先などで開いた時に、読み込みを忘れて古いデータのまま気づかない事故を防ぐため ----
+  const LAST_UPDATED_KEY = 'sakaeIS_lastUpdatedAt_v1';
+  function markUpdated(){
+    localStorage.setItem(LAST_UPDATED_KEY, new Date().toISOString());
+    renderLastUpdated();
+  }
+  function renderLastUpdated(){
+    const el = document.getElementById('lastUpdatedLabel');
+    if(!el) return;
+    const raw = localStorage.getItem(LAST_UPDATED_KEY);
+    if(!raw){ el.textContent = ''; return; }
+    const d = new Date(raw);
+    if(isNaN(d.getTime())){ el.textContent = ''; return; }
+    const pad = n=>String(n).padStart(2,'0');
+    el.textContent = 'データ最終更新：'+(d.getMonth()+1)+'/'+d.getDate()+' '+pad(d.getHours())+':'+pad(d.getMinutes());
+  }
+
+  // ---- 作業票ともリンクする ----
+  // 作業票側に既にその品番のデータがあれば、客先名・型式名・納期などをそちらにも反映する（作業票がまだ無ければ何もしない。
+  // 作業票を初めて開く時はURLパラメータからこのレコードの内容が渡されて自動的に作られるため）
+  function syncToBuhinState(rec){
+    if(!rec.productNo) return;
+    const key = 'sakaeIS_buhinhyoMock_v1_' + rec.productNo;
+    let bs;
+    try{
+      const raw = localStorage.getItem(key);
+      if(!raw) return;
+      bs = JSON.parse(raw);
+    }catch(e){ return; }
+    bs.order = bs.order || {};
+    bs.order.customer = rec.customer || '';
+    bs.order.model = rec.modelName || '';
+    bs.order.dueDate = rec.dueDate || '';
+    bs.order.orderDate = rec.orderDate || '';
+    bs.order.orderNo = rec.orderNo || '';
+    localStorage.setItem(key, JSON.stringify(bs));
+  }
+
+  // ---- 作業票など、別タブでの受注連絡書一覧データの変更をリアルタイムに反映する ----
+  window.addEventListener('storage', (e)=>{
+    if(e.key !== STORAGE_KEY) return;
+    if(e.newValue == null) return;
+    try{ records = JSON.parse(e.newValue); }catch(err){ return; }
+    render();
+  });
+
+  function seedRecords(){
+    return [
+      { id:uid(), productNo:'35481000-11', orderNo:'35481000-11', customer:'株式会社ミコシヤ', modelName:'MKS(-)', itemName:'金型一式製作',
+        category:'型', subject:'新作', orderDate:'2026-07-23', dueDate:'2026-09-18', qty:'1式',
+        amount:'200000', manhour:'', drafter:'見越', note:'', status:'inprogress' },
+    ];
+  }
+
+  let records = loadRecords();
+  let filterMode = 'all';
+
+  // ---- 直前の1操作だけ元に戻せる仕組み（削除・ひな形解除など）。このページを開いている間だけ有効（保存はしない）。
+  // 新しく別の操作をすると、前の「戻す」は上書きされて消える（複数段階は戻せない）。 ----
+  let lastUndo = null;
+  let undoToastTimer = null;
+  const undoToastEl = document.getElementById('undoToast');
+  const undoToastTextEl = document.getElementById('undoToastText');
+  const undoToastBtn = document.getElementById('undoToastBtn');
+  function showUndo(message, undoFn){
+    lastUndo = { undo: undoFn };
+    undoToastTextEl.textContent = message;
+    undoToastEl.classList.add('show');
+    if(undoToastTimer) clearTimeout(undoToastTimer);
+    undoToastTimer = setTimeout(()=>{ undoToastEl.classList.remove('show'); lastUndo = null; }, 8000);
+  }
+  if(undoToastBtn){
+    undoToastBtn.addEventListener('click', ()=>{
+      if(!lastUndo) return;
+      const fn = lastUndo.undo;
+      lastUndo = null;
+      undoToastEl.classList.remove('show');
+      if(undoToastTimer) clearTimeout(undoToastTimer);
+      fn();
+    });
+  }
+  // Ctrl+Z／Cmd+Zでも同じ「元に戻す」を実行できるようにする（入力欄内では文字の入力取り消しを邪魔しないよう素通りさせる）
+  document.addEventListener('keydown', (e)=>{
+    if((e.key!=='z' && e.key!=='Z') || !(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey) return;
+    const tag = document.activeElement && document.activeElement.tagName;
+    if(tag==='INPUT' || tag==='TEXTAREA') return;
+    if(!lastUndo) return;
+    e.preventDefault();
+    const fn = lastUndo.undo;
+    lastUndo = null;
+    undoToastEl.classList.remove('show');
+    if(undoToastTimer) clearTimeout(undoToastTimer);
+    fn();
+  });
+
+  const searchInput = document.getElementById('searchInput');
+  const clearBtn = document.getElementById('clearBtn');
+  const resultGrid = document.getElementById('resultGrid');
+  const resultsMeta = document.getElementById('resultsMeta');
+  const hero = document.getElementById('hero');
+  const quickLinks = document.getElementById('quickLinks');
+
+  function esc(s){
+    return (s||'').toString().replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  function fmtDate(d){
+    if(!d) return '未定';
+    return d;
+  }
+
+  function matches(rec, q){
+    if(!q) return true;
+    const hay = [rec.orderNo, rec.customer, rec.modelName, rec.itemName].join(' ').toLowerCase();
+    return hay.includes(q.toLowerCase());
+  }
+
+  function render(){
+    const q = searchInput.value.trim();
+    clearBtn.classList.toggle('show', q.length>0);
+    hero.classList.toggle('compact', q.length>0);
+
+    let list = records.filter(r=>matches(r,q));
+    if(filterMode==='inprogress') list = list.filter(r=>r.status==='inprogress');
+    if(filterMode==='done') list = list.filter(r=>r.status==='done');
+
+    list.sort((a,b)=>{
+      if(a.status!==b.status) return a.status==='inprogress' ? -1 : 1;
+      return (b.dueDate||'').localeCompare(a.dueDate||'');
+    });
+
+    resultsMeta.textContent = '受注連絡書カード ' + list.length + '件';
+    document.getElementById('exportCsvBtn').style.display = (filterMode==='done') ? 'inline-block' : 'none';
+    if(list.length===0){
+      resultGrid.innerHTML = '';
+      resultGrid.insertAdjacentHTML('afterend', '');
+      resultGrid.innerHTML = '<div class="emptyState" style="grid-column:1/-1;">該当する案件がありません。「＋ 新規作成」から登録できます。</div>';
+      return;
+    }
+    resultGrid.innerHTML = list.map(r=>{
+      const statusBadge = r.status==='done'
+        ? '<span class="badge done">完了</span>'
+        : '<span class="badge inprogress">進行中</span>';
+      const tplBadge = r.isTemplate ? '<span class="badge template">⭐ ひな形</span>' : '';
+      return '<div class="card" data-id="'+r.id+'">'
+        + '<div class="cardTop"><span class="productNo">'+esc(r.orderNo)+'</span><span class="badgeRow">'+tplBadge+statusBadge+'<button type="button" class="cardDelBtn" data-role="delCard" title="削除">✕</button></span></div>'
+        + '<div class="modelName">'+esc(r.modelName || r.itemName || '(名称未設定)')+'</div>'
+        + '<div class="meta"><b>客先：</b>'+esc(r.customer||'-')+'　<b>納期：</b>'+esc(fmtDate(r.dueDate))+'</div>'
+        + '</div>';
+    }).join('');
+  }
+
+  searchInput.addEventListener('input', render);
+  clearBtn.addEventListener('click', ()=>{ searchInput.value=''; render(); searchInput.focus(); });
+  document.getElementById('searchBtn').addEventListener('click', render);
+
+  quickLinks.addEventListener('click', (e)=>{
+    const btn = e.target.closest('button[data-filter]');
+    if(!btn) return;
+    filterMode = btn.dataset.filter;
+    quickLinks.querySelectorAll('button').forEach(b=>b.classList.toggle('active', b===btn));
+    render();
+  });
+
+  // ---- 完了案件をCSVで書き出し（ブラウザのlocalStorageだけに置いておくのは心もとないので、簡易バックアップとして使う想定）----
+  function csvEscape(v){
+    const s = (v==null ? '' : String(v));
+    return /[",\r\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
+  }
+  function exportDoneRecordsCsv(){
+    const done = records.filter(r=>r.status==='done');
+    if(done.length===0){
+      alert('「完了（過去制作分）」になっている案件がまだありません。');
+      return;
+    }
+    const headers = ['社内No','客先名','型式名／図番','品名','品目','科目','受注日','納期','数量','受注金額','起票者','特記事項'];
+    const rows = done.map(r=>[
+      r.orderNo||'', r.customer||'', r.modelName||'', r.itemName||'', r.category||'', r.subject||'',
+      r.orderDate||'', r.dueDate||'', r.qty||'', r.amount||'', r.drafter||'', r.note||''
+    ]);
+    const lines = [headers].concat(rows).map(row=> row.map(csvEscape).join(',')).join('\r\n');
+    const csvContent = String.fromCharCode(0xFEFF) + lines; // Excelで文字化けしないようUTF-8 BOM付き
+    const blob = new Blob([csvContent], { type:'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'MIKOSHIYA_SEIKI-iS_完了案件_'+todayStr()+'.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+  document.getElementById('exportCsvBtn').addEventListener('click', exportDoneRecordsCsv);
+
+  // ---- カードの削除（受注連絡書一覧からこの案件を消す）----
+  // 作業票（部品表データ）や個別日程表など、リンクしている他ページのデータはこの削除では消えない（品番が一致すれば残ったまま参照可能）。
+  // ---- この品番に紐づく他ページのデータ（作業票／部品表・個別日程表）のキー一覧。カード削除時に一緒に消す対象 ----
+  function productDataKeys(productNo){
+    if(!productNo) return [];
+    const suffix = '_' + productNo;
+    return [
+      'sakaeIS_buhinhyoMock_v1' + suffix,
+      'sakaeIS_kobetsuMock_memos_v1' + suffix,
+      'sakaeIS_kobetsuMock_view_v1' + suffix,
+      'sakaeIS_kobetsuMock_rowcounts_v1' + suffix,
+      'sakaeIS_kobetsuMock_laneassign_v1' + suffix,
+      'sakaeIS_kobetsuMock_legacybars_v1' + suffix,
+      'sakaeIS_kobetsuMock_checks_v1' + suffix,
+      'sakaeIS_kobetsuMock_confirm_v1' + suffix,
+    ];
+  }
+
+  // ---- 案件を編集して社内No.（＝内部の紐付けキー）が変わった時、他ページに既にある作業票・個別日程表などの
+  // データを消してしまわないよう、古いキーから新しいキーへそのまま引き継ぐ ----
+  function migrateProductData(oldProductNo, newProductNo){
+    if(!oldProductNo || !newProductNo || oldProductNo === newProductNo) return;
+    const oldKeys = productDataKeys(oldProductNo);
+    const newKeys = productDataKeys(newProductNo);
+    oldKeys.forEach((oldKey, i)=>{
+      const raw = localStorage.getItem(oldKey);
+      if(raw == null) return;
+      let toStore = raw;
+      // 作業票データの中身にも品番（内部名はproductNoのまま）が埋め込まれているので、
+      // それも新しい社内No.に書き換えないと作業票側が古いキーに保存し続けてしまう
+      if(oldKey.indexOf('sakaeIS_buhinhyoMock_v1_')===0){
+        try{
+          const bs = JSON.parse(raw);
+          if(bs && bs.order) bs.order.productNo = newProductNo;
+          toStore = JSON.stringify(bs);
+        }catch(e){}
+      }
+      localStorage.setItem(newKeys[i], toStore);
+      localStorage.removeItem(oldKey);
+    });
+  }
+
+  // ---- 全データの書き出し・読み込み ----
+  // このシステムはブラウザのlocalStorageにデータを保存しているため、別のパソコンや別のブラウザ（別のWindowsアカウント含む）
+  // では、この画面で入力したデータは見えず、最初のサンプルデータに戻って見える。JSONファイルとして書き出しておけば、
+  // 別の環境で「読み込み」することで案件と紐づく作業票・個別日程表のデータをまとめて持っていける
+  // ---- 案件（品番）に紐づかない、全体で共有しているデータのキー。書き出し・読み込みでも一緒に持っていく ----
+  // sakaeIS_customCodeColors_v1: 作業票で自由入力した新しい工程に自動で割り当てた色（作業票・個別日程表・作業票印刷で共通）。
+  //   これを一緒に運ばないと、別のパソコンで同じ工程が別の色として割り当てられてしまい、画面ごとに色がバラバラになる。
+  function globalDataKeys(){
+    return [ 'sakaeIS_customCodeColors_v1' ];
+  }
+
+  function buildExportData(){
+    const linkedData = {};
+    records.forEach(rec=>{
+      if(!rec.productNo) return;
+      productDataKeys(rec.productNo).forEach(key=>{
+        if(linkedData[key] !== undefined) return;
+        const raw = localStorage.getItem(key);
+        if(raw != null) linkedData[key] = raw;
+      });
+    });
+    globalDataKeys().forEach(key=>{
+      const raw = localStorage.getItem(key);
+      if(raw != null) linkedData[key] = raw;
+    });
+    return {
+      app: 'MIKOSHIYA SEIKI-iS',
+      exportedAt: new Date().toISOString(),
+      records: records,
+      linkedData: linkedData
+    };
+  }
+
+  document.getElementById('exportAllBtn').addEventListener('click', ()=>{
+    const data = buildExportData();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'MIKOSHIYA_SEIKI-iS_データ_' + todayStr().replace(/-/g,'') + '.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  });
+
+  document.getElementById('importAllBtn').addEventListener('click', ()=>{
+    document.getElementById('importFileInput').click();
+  });
+  document.getElementById('importFileInput').addEventListener('change', (e)=>{
+    const file = e.target.files[0];
+    e.target.value = '';
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      let data;
+      try{ data = JSON.parse(reader.result); }
+      catch(err){ alert('このファイルはJSONとして読み込めませんでした。'); return; }
+      if(!data || !Array.isArray(data.records)){
+        alert('このファイルは書き出し形式と違うようです（受注連絡書のデータが見つかりません）。');
+        return;
+      }
+      const importCount = data.records.length;
+      if(!window.confirm(importCount+'件の案件を読み込みます。\n今この画面にある案件は全部消えて、ファイルの内容にまるごと入れ替わります。よろしいですか？')) return;
+      records = data.records.slice();
+      saveRecords();
+      if(data.linkedData){
+        Object.keys(data.linkedData).forEach(key=>{
+          localStorage.setItem(key, data.linkedData[key]);
+        });
+      }
+      searchInput.value = '';
+      filterMode = 'all';
+      quickLinks.querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.filter==='all'));
+      render();
+      alert(importCount+'件の案件を読み込みました。');
+    };
+    reader.readAsText(file);
+  });
+
+  function deleteRecord(id){
+    const rec = records.find(r=>r.id===id);
+    if(!rec) return;
+    const label = rec.orderNo ? '社内No.「'+rec.orderNo+'」' : 'このカード';
+    const dataKeys = productDataKeys(rec.productNo);
+    const hasLinkedData = dataKeys.some(k=> localStorage.getItem(k) != null);
+    const warnText = hasLinkedData
+      ? '\n※この案件の作業票（部品表）・個別日程表のデータもすべて一緒に削除されます（工程の日程表からもこの案件の工程が消えます）。'
+      : '';
+    if(!window.confirm(label+'（'+(rec.modelName||rec.itemName||'名称未設定')+'）を削除します。'+warnText+'よろしいですか？')) return;
+    const idx = records.indexOf(rec);
+    const snapshot = JSON.parse(JSON.stringify(rec));
+    // 削除前に、紐づく他ページのデータも元に戻せるようスナップショットしておく（実際に存在したキーだけ）
+    const dataSnapshot = {};
+    dataKeys.forEach(k=>{
+      const v = localStorage.getItem(k);
+      if(v != null) dataSnapshot[k] = v;
+    });
+    records = records.filter(r=>r.id!==id);
+    saveRecords();
+    dataKeys.forEach(k=> localStorage.removeItem(k));
+    render();
+    showUndo(label+'を削除しました', ()=>{
+      records.splice(Math.min(idx, records.length), 0, snapshot);
+      saveRecords();
+      Object.keys(dataSnapshot).forEach(k=> localStorage.setItem(k, dataSnapshot[k]));
+      render();
+    });
+  }
+
+  resultGrid.addEventListener('click', (e)=>{
+    const delBtn = e.target.closest('.cardDelBtn');
+    if(delBtn){
+      e.stopPropagation();
+      const card = delBtn.closest('.card');
+      if(card) deleteRecord(card.dataset.id);
+      return;
+    }
+    const card = e.target.closest('.card');
+    if(!card) return;
+    openDetail(card.dataset.id);
+  });
+
+  // ---- 新規作成：見積／日程テーブル（工程名はフリー入力）／変動費摘要（固定項目）／設計計画サイドバー（固定・独立入力）----
+  const DESIGN_DEFAULT_ROWS = ['','','','','','','','','',''];
+  const COST_ITEMS = ['材料費','購入品費','特殊外注費','熱処理費','表面処理費'];
+  const PLAN_MILESTONES = ['仕様打合','組図完成','材料手配','キャビ図完','部品図完','電極材手','電極図出図'];
+
+  const designTbody = document.getElementById('designTbody');
+  const costTbody = document.getElementById('costTbody');
+  const designTotalEl = document.getElementById('designTotalH');
+  const costTotalEl = document.getElementById('costTotal');
+  let designRowCount = 0;
+
+  function buildCostRow(name, idx){
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td class="pfRowName">'+name+'</td>'
+      + '<td><input type="number" class="numCell costAmtInput" id="c_amt_'+idx+'"></td>'
+      + '<td><input type="date" id="c_from_'+idx+'"></td>'
+      + '<td class="pfTilde">～</td>'
+      + '<td><input type="date" id="c_to_'+idx+'"></td>'
+      + '<td><input type="text" id="c_memo_'+idx+'" ></td>';
+    return tr;
+  }
+  function buildDesignRow(name, idx){
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td style="padding:2px 3px; background:#fafbfd;"><input type="text" id="d_name_'+idx+'" value="'+esc(name)+'" style="width:100%; border:none; border-bottom:1px dashed #98a3b3; background:transparent; font-size:10.5px; font-weight:700; color:#3a4a63; text-align:center; padding:2px 3px; outline:none; font-family:inherit; cursor:text;" onfocus="this.style.background=\'#eef3fa\'" onblur="this.style.background=\'transparent\'"></td>'
+      + '<td><input type="number" class="numCell designAmtInput" id="d_h_'+idx+'"></td>'
+      + '<td><input type="date" id="d_from_'+idx+'"></td>'
+      + '<td class="pfTilde">～</td>'
+      + '<td><input type="date" id="d_to_'+idx+'"></td>'
+      + '<td><input type="text" id="d_memo_'+idx+'" ></td>';
+    return tr;
+  }
+  function addDesignRow(name){
+    const tr = buildDesignRow(name || '', designRowCount);
+    designTbody.appendChild(tr);
+    designRowCount++;
+  }
+  function resetDesignTable(){
+    designTbody.innerHTML = '';
+    designRowCount = 0;
+    DESIGN_DEFAULT_ROWS.forEach(name=> addDesignRow(name));
+  }
+  resetDesignTable();
+  COST_ITEMS.forEach((name,i)=> costTbody.appendChild(buildCostRow(name, i)));
+  document.getElementById('addDesignRowBtn').addEventListener('click', ()=> addDesignRow(''));
+
+  // 設計計画サイドバー：紙帳票と同じく独立した固定7項目の記入欄（テーブルとは連動しない）
+  const designSidebar = document.getElementById('designSidebar');
+  // 仕様打合せだけは当日1日で完結する打合せなので日付を1つだけ選択、それ以降の項目は「その日程まで」を表す
+  // 締切日（end）のみを持つため「～〇年〇月〇日」の1つの日付だけを選択する表示にする。
+  function buildSidebar(){
+    designSidebar.innerHTML = PLAN_MILESTONES.map((name,i)=>{
+      if(i===0){
+        return '<div class="pfSidebarItem"><div class="siName">'+esc(name)+'</div>'
+          + '<div class="siRange"><input type="date" id="s_from_0" style="width:72%; border:none; border-bottom:1px solid #98a3b3; font-size:9px; background:transparent; outline:none;"></div></div>';
+      }
+      return '<div class="pfSidebarItem"><div class="siName">'+esc(name)+'</div>'
+        + '<div class="siRange">～　<input type="date" id="s_to_'+i+'" style="width:60%; border:none; border-bottom:1px solid #98a3b3; font-size:9px; background:transparent; outline:none;"></div></div>';
+    }).join('');
+  }
+  buildSidebar();
+
+  function recalcTotals(){
+    let dTotal = 0;
+    document.querySelectorAll('.designAmtInput').forEach(inp=>{ dTotal += Number(inp.value)||0; });
+    designTotalEl.textContent = dTotal.toLocaleString(undefined,{minimumFractionDigits:1});
+    let cTotal = 0;
+    document.querySelectorAll('.costAmtInput').forEach(inp=>{ cTotal += Number(inp.value)||0; });
+    costTotalEl.textContent = cTotal.toLocaleString();
+  }
+  designTbody.addEventListener('input', recalcTotals);
+  costTbody.addEventListener('input', recalcTotals);
+
+  // ---- 新規作成 ----
+  const newOverlay = document.getElementById('newOverlay');
+  function setRadio(name, value){
+    document.querySelectorAll('input[name="'+name+'"]').forEach(r=>{ r.checked = (r.value===value); });
+  }
+  function getRadio(name){
+    const el = document.querySelector('input[name="'+name+'"]:checked');
+    return el ? el.value : '';
+  }
+  let formEditId = null;
+  const FORM_FIELD_IDS = ['f_tCode','f_orderNo','f_customer','f_modelName','f_itemName','f_qty','f_komeSu','f_amount',
+     'f_extraDocs','f_drafter','f_mfgResp','f_salesResp','f_designResp','f_issueDate1','f_issueDate2','f_note'];
+  const FORM_FIELD_KEYS = {
+    f_tCode:'tCode', f_orderNo:'orderNo', f_customer:'customer', f_modelName:'modelName',
+    f_itemName:'itemName', f_qty:'qty', f_komeSu:'komeSu', f_amount:'amount', f_extraDocs:'extraDocs',
+    f_drafter:'drafter', f_mfgResp:'mfgResp', f_salesResp:'salesResp', f_designResp:'designResp',
+    f_issueDate1:'issueDate1', f_issueDate2:'issueDate2', f_note:'note'
+  };
+  const REG_FIELD_KEYS = { f_mbSpec:'mbSpec', f_slideCount:'slideCount', f_cavityMaterial:'cavityMaterial', f_plateSize:'plateSize', f_shapeArea:'shapeArea', f_expectedProfit:'expectedProfit' };
+
+  function fillDesignTable(rows){
+    designTbody.innerHTML = '';
+    designRowCount = 0;
+    if(rows && rows.length){
+      rows.forEach(r=>{
+        addDesignRow(r.name || '');
+        const idx = designRowCount - 1;
+        document.getElementById('d_h_'+idx).value = r.amount || '';
+        document.getElementById('d_from_'+idx).value = r.from || '';
+        document.getElementById('d_to_'+idx).value = r.to || '';
+        document.getElementById('d_memo_'+idx).value = r.memo || '';
+      });
+      while(designRowCount < 10) addDesignRow('');
+    }else{
+      resetDesignTable();
+    }
+  }
+  function fillCostTable(rows){
+    COST_ITEMS.forEach((name,i)=>{
+      const m = rows ? rows.find(r=>r.name===name) : null;
+      document.getElementById('c_amt_'+i).value = m ? (m.amount||'') : '';
+      document.getElementById('c_from_'+i).value = m ? (m.from||'') : '';
+      document.getElementById('c_to_'+i).value = m ? (m.to||'') : '';
+      document.getElementById('c_memo_'+i).value = m ? (m.memo||'') : '';
+    });
+  }
+  function fillPlanMilestones(rows){
+    PLAN_MILESTONES.forEach((name,i)=>{
+      const m = rows ? rows.find(r=>r.name===name) : null;
+      if(i===0){
+        document.getElementById('s_from_0').value = m ? (m.from||'') : '';
+      }else{
+        document.getElementById('s_to_'+i).value = m ? (m.to||'') : '';
+      }
+    });
+  }
+
+  function openForm(rec){
+    // rec.idが無い（ひな形から作成した場合の仮データなど）は「新規」扱いにする
+    const isEdit = !!(rec && rec.id);
+    formEditId = isEdit ? rec.id : null;
+    const reg = (rec && rec.registration) || {};
+    FORM_FIELD_IDS.forEach(id=>{ document.getElementById(id).value = rec ? (rec[FORM_FIELD_KEYS[id]] || '') : ''; });
+    Object.keys(REG_FIELD_KEYS).forEach(id=>{ document.getElementById(id).value = rec ? (reg[REG_FIELD_KEYS[id]] || '') : ''; });
+    document.getElementById('f_orderDate').value = rec ? (rec.orderDate || '') : todayStr();
+    document.getElementById('f_dueDate').value = rec ? (rec.dueDate || '') : '';
+    setRadio('f_status', rec ? (rec.status2 || '検討') : '検討');
+    setRadio('f_shikyu', rec ? (rec.shikyu || '') : '');
+    setRadio('f_category', rec ? (rec.category || '型') : '型');
+    setRadio('f_subject', rec ? (rec.subject || '新作') : '新作');
+    setRadio('f_infoForecast', rec ? (rec.infoForecast || '') : '');
+    setRadio('f_hinshu', reg.hinshu || '試作');
+    setRadio('f_precision', reg.precision || 'A');
+    setRadio('f_partingChange', reg.partingChange || '無');
+    fillDesignTable(rec ? rec.designSchedule : null);
+    fillCostTable(rec ? rec.costSummary : null);
+    fillPlanMilestones(rec ? rec.designPlan : null);
+    recalcTotals();
+    document.getElementById('newModalTitle').textContent = isEdit ? '受注に関する連絡書' : '受注に関する連絡書　新規作成';
+    document.getElementById('saveNewBtn').textContent = isEdit ? 'この内容で更新' : 'この内容で登録';
+    newOverlay.style.display = 'flex';
+    if(!isEdit) document.getElementById('f_orderNo').focus();
+  }
+  function openNew(){ openForm(null); }
+  function closeNew(){ newOverlay.style.display = 'none'; formEditId = null; }
+  function todayStr(){
+    const d = new Date();
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+
+  document.getElementById('newBtn').addEventListener('click', openNew);
+  document.getElementById('closeNewBtn').addEventListener('click', closeNew);
+  document.getElementById('cancelNewBtn').addEventListener('click', closeNew);
+  // ---- 背景クリックでの自動クローズは廃止 ----
+  // 受注連絡書は入力項目が多く、モーダルが縦に長くスクロールも必要になるため、
+  // 行の入力中にカーソルが少しモーダル外（背景）にずれただけで誤って閉じ、
+  // 入力内容が消えてしまう不具合が報告された（工程名を数件入力した時点でメイン画面に戻ってしまう）。
+  // 閉じる操作は必ず「×」または「キャンセル」ボタンからのみ行うようにする。
+  document.getElementById('printNewBtn').addEventListener('click', ()=>{ window.print(); });
+
+  function collectTableRows(names, kind){
+    return names.map((name, i)=>{
+      const amtId = kind==='design' ? 'd_h_'+i : 'c_amt_'+i;
+      const fromId = kind==='design' ? 'd_from_'+i : 'c_from_'+i;
+      const toId = kind==='design' ? 'd_to_'+i : 'c_to_'+i;
+      const memoId = kind==='design' ? 'd_memo_'+i : 'c_memo_'+i;
+      return {
+        name: name,
+        amount: document.getElementById(amtId).value,
+        from: document.getElementById(fromId).value,
+        to: document.getElementById(toId).value,
+        memo: document.getElementById(memoId).value.trim()
+      };
+    }).filter(r=> r.amount || r.from || r.to || r.memo);
+  }
+
+  function collectDesignRows(){
+    const rows = [];
+    for(let i=0; i<designRowCount; i++){
+      const name = document.getElementById('d_name_'+i).value.trim();
+      const amount = document.getElementById('d_h_'+i).value;
+      const from = document.getElementById('d_from_'+i).value;
+      const to = document.getElementById('d_to_'+i).value;
+      const memo = document.getElementById('d_memo_'+i).value.trim();
+      if(name || amount || from || to || memo){
+        rows.push({ name: name || '(工程名未入力)', amount, from, to, memo });
+      }
+    }
+    return rows;
+  }
+
+  function collectPlanMilestones(){
+    return PLAN_MILESTONES.map((name,i)=>{
+      if(i===0){
+        return { name: name, from: document.getElementById('s_from_0').value, to: '' };
+      }
+      return { name: name, from: '', to: document.getElementById('s_to_'+i).value };
+    }).filter(r=> r.from || r.to);
+  }
+
+  document.getElementById('saveNewBtn').addEventListener('click', ()=>{
+    const orderNo = document.getElementById('f_orderNo').value.trim();
+    const customer = document.getElementById('f_customer').value.trim();
+    if(!orderNo || !customer){
+      alert('社内No.と客先名は必須です。');
+      return;
+    }
+    // 社内No.は全ページの紐付けキーとして使われるため、他の案件と重複していないか確認する（編集中の自分自身は除く）
+    const dupRec = records.find(r=> r.orderNo === orderNo && r.id !== formEditId);
+    if(dupRec){
+      alert('社内No.「'+orderNo+'」は既に別の案件（'+(dupRec.modelName||dupRec.itemName||'名称未設定')+'）で使われています。別の番号にしてください。');
+      return;
+    }
+    const rec = {
+      status2: getRadio('f_status'),
+      tCode: document.getElementById('f_tCode').value.trim(),
+      orderNo: orderNo,
+      productNo: orderNo, // 内部の紐付けキー名はproductNoのままだが、値は社内No.をそのまま使う
+      customer: customer,
+      modelName: document.getElementById('f_modelName').value.trim(),
+      itemName: document.getElementById('f_itemName').value.trim(),
+      category: getRadio('f_category'),
+      subject: getRadio('f_subject'),
+      shikyu: getRadio('f_shikyu'),
+      orderDate: document.getElementById('f_orderDate').value,
+      dueDate: document.getElementById('f_dueDate').value,
+      qty: document.getElementById('f_qty').value.trim(),
+      komeSu: document.getElementById('f_komeSu').value.trim(),
+      amount: document.getElementById('f_amount').value,
+      extraDocs: document.getElementById('f_extraDocs').value,
+      infoForecast: getRadio('f_infoForecast'),
+      drafter: document.getElementById('f_drafter').value.trim(),
+      mfgResp: document.getElementById('f_mfgResp').value.trim(),
+      salesResp: document.getElementById('f_salesResp').value.trim(),
+      designResp: document.getElementById('f_designResp').value.trim(),
+      issueDate1: document.getElementById('f_issueDate1').value,
+      issueDate2: document.getElementById('f_issueDate2').value,
+      note: document.getElementById('f_note').value.trim(),
+      designSchedule: collectDesignRows(),
+      designPlan: collectPlanMilestones(),
+      costSummary: collectTableRows(COST_ITEMS, 'cost'),
+      registration: {
+        hinshu: getRadio('f_hinshu'),
+        mbSpec: document.getElementById('f_mbSpec').value.trim(),
+        slideCount: document.getElementById('f_slideCount').value,
+        cavityMaterial: document.getElementById('f_cavityMaterial').value.trim(),
+        plateSize: document.getElementById('f_plateSize').value.trim(),
+        precision: getRadio('f_precision'),
+        partingChange: getRadio('f_partingChange'),
+        shapeArea: document.getElementById('f_shapeArea').value.trim(),
+        expectedProfit: document.getElementById('f_expectedProfit').value
+      }
+    };
+    if(formEditId){
+      const idx = records.findIndex(r=>r.id===formEditId);
+      if(idx>-1){
+        const oldProductNo = records[idx].productNo;
+        rec.id = formEditId;
+        rec.status = records[idx].status;
+        records[idx] = rec;
+        // 社内No.を変更・新規入力した結果、内部の紐付けキーが変わった場合は既存の作業票データ等を引き継ぐ
+        if(oldProductNo !== rec.productNo){
+          migrateProductData(oldProductNo, rec.productNo);
+        }
+      }
+    }else{
+      rec.id = uid();
+      rec.status = 'inprogress';
+      records.unshift(rec);
+    }
+    saveRecords();
+    syncToBuhinState(rec);
+    closeNew();
+    searchInput.value = '';
+    filterMode = 'all';
+    quickLinks.querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.filter==='all'));
+    render();
+  });
+
+  // ---- 詳細パネル ----
+  const detailOverlay = document.getElementById('detailOverlay');
+  const detailBody = document.getElementById('detailBody');
+  const detailTitle = document.getElementById('detailTitle');
+  const toggleDone = document.getElementById('f_toggleDone');
+  let currentDetailId = null;
+
+  function miniTable(title, rows, cols){
+    if(!rows || rows.length===0) return '';
+    const head = cols.map(c=>'<th style="padding:4px 6px;background:#f2f4f8;color:#5b6b84;font-size:11px;border:1px solid #e6eaf1;">'+esc(c)+'</th>').join('');
+    const body = rows.map(r=>
+      '<tr>'
+      + '<td style="padding:4px 6px;border:1px solid #eef1f6;font-weight:700;color:#3a4a63;white-space:nowrap;">'+esc(r.name)+'</td>'
+      + '<td style="padding:4px 6px;border:1px solid #eef1f6;text-align:right;">'+esc(r.amount||'-')+'</td>'
+      + '<td style="padding:4px 6px;border:1px solid #eef1f6;">'+esc((r.from||'')+(r.from||r.to?'　～　':'')+(r.to||(r.from?'':'-')))+'</td>'
+      + '<td style="padding:4px 6px;border:1px solid #eef1f6;">'+esc(r.memo||'-')+'</td>'
+      + '</tr>'
+    ).join('');
+    return '<div style="margin-top:14px;font-size:12px;font-weight:700;color:#173a68;">'+esc(title)+'</div>'
+      + '<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:6px;"><thead><tr>'+head+'</tr></thead><tbody>'+body+'</tbody></table>';
+  }
+
+  function openDetail(id){
+    const rec = records.find(r=>r.id===id);
+    if(!rec) return;
+    currentDetailId = id;
+    detailTitle.textContent = rec.orderNo + '　案件詳細';
+    const rows = [
+      ['ステータス', rec.status2 || '-'],
+      ['T', rec.tCode || '-'],
+      ['社内№', rec.orderNo || '-'],
+      ['客先名', rec.customer],
+      ['型番／図番', rec.modelName || '-'],
+      ['品名', rec.itemName || '-'],
+      ['品目', rec.category || '-'],
+      ['科目', rec.subject || '-'],
+      ['支給図面出図', rec.shikyu || '-'],
+      ['受注日', rec.orderDate || '-'],
+      ['納期', rec.dueDate || '-'],
+      ['数量', rec.qty || '-'],
+      ['込メ数', rec.komeSu || '-'],
+      ['受注金額', rec.amount ? Number(rec.amount).toLocaleString()+'円' : '-'],
+      ['本票以外資料', rec.extraDocs ? rec.extraDocs+'枚' : '-'],
+      ['情報の場合受注見込', rec.infoForecast || '-'],
+      ['起票者', rec.drafter || '-'],
+      ['製造責任者', rec.mfgResp || '-'],
+      ['営業責任者', rec.salesResp || '-'],
+      ['設計責任者', rec.designResp || '-'],
+      ['特記事項', rec.note || '-'],
+    ];
+    let html = rows.map(([k,v])=>
+      '<div class="drow"><div class="dk">'+esc(k)+'</div><div class="dv">'+esc(v)+'</div></div>'
+    ).join('');
+
+    html += miniTable('設計日程（見積）', rec.designSchedule, ['工程名','見積工数(H)','大日程','備考']);
+    if(rec.designPlan && rec.designPlan.length){
+      html += '<div style="margin-top:14px;font-size:12px;font-weight:700;color:#173a68;">設計計画</div>';
+      html += rec.designPlan.map(p=>{
+        const isFirst = p.name === PLAN_MILESTONES[0];
+        const val = isFirst ? (p.from || '未定') : ('～　' + (p.to || '未定'));
+        return '<div class="drow"><div class="dk">'+esc(p.name)+'</div><div class="dv">'+esc(val)+'</div></div>';
+      }).join('');
+    }
+    html += miniTable('変動費摘要', rec.costSummary, ['項目','見積金額(円)','大日程','備考']);
+
+    if(rec.registration){
+      const reg = rec.registration;
+      const regRows = [
+        ['品種', reg.hinshu || '-'],
+        ['ＭＢ仕様', reg.mbSpec || '-'],
+        ['スライド数', reg.slideCount ? reg.slideCount+'ヶ' : '-'],
+        ['キャビコア材質', reg.cavityMaterial || '-'],
+        ['型板サイズ', reg.plateSize || '-'],
+        ['型精度', reg.precision || '-'],
+        ['見切変化', reg.partingChange || '-'],
+        ['形状面積', reg.shapeArea || '-'],
+        ['見込利益', reg.expectedProfit ? Number(reg.expectedProfit).toLocaleString()+'円' : '-'],
+      ];
+      const hasReg = regRows.some(([,v])=> v !== '-');
+      if(hasReg){
+        html += '<div style="margin-top:14px;font-size:12px;font-weight:700;color:#173a68;">登録事項</div>';
+        html += regRows.map(([k,v])=>
+          '<div class="drow"><div class="dk">'+esc(k)+'</div><div class="dv">'+esc(v)+'</div></div>'
+        ).join('');
+      }
+    }
+
+    const partsUrl = 'システムファイル/作業票_モック.html?productNo='+encodeURIComponent(rec.productNo)
+      +'&orderNo='+encodeURIComponent(rec.orderNo||'')
+      +'&customer='+encodeURIComponent(rec.customer||'')
+      +'&modelName='+encodeURIComponent(rec.modelName||'')
+      +'&orderDate='+encodeURIComponent(rec.orderDate||'')
+      +'&dueDate='+encodeURIComponent(rec.dueDate||'');
+    html += '<div class="detailLinkRow"><a class="btn primary" href="'+partsUrl+'" target="_blank">作業票を見る／作成する →</a></div>';
+    html += '<div class="noteBox">客先名・型式名・納期などは作業票（さらに個別日程表）とリンクしています。どちらで編集しても反映されます。作業票・受注(支給)一覧との連携は次のステップで実装予定。</div>';
+    detailBody.innerHTML = html;
+    toggleDone.checked = rec.status === 'done';
+    document.getElementById('templateToggleBtn').textContent = rec.isTemplate ? '★ ひな形から外す' : '⭐ ひな形に登録';
+    detailOverlay.style.display = 'flex';
+  }
+  function closeDetail(){ detailOverlay.style.display = 'none'; currentDetailId = null; }
+  document.getElementById('closeDetailBtn').addEventListener('click', closeDetail);
+  document.getElementById('closeDetailBtn2').addEventListener('click', closeDetail);
+  detailOverlay.addEventListener('click', (e)=>{ if(e.target===detailOverlay) closeDetail(); });
+  document.getElementById('viewFormBtn').addEventListener('click', ()=>{
+    const rec = records.find(r=>r.id===currentDetailId);
+    if(!rec) return;
+    closeDetail();
+    openForm(rec);
+  });
+  toggleDone.addEventListener('change', ()=>{
+    const rec = records.find(r=>r.id===currentDetailId);
+    if(!rec) return;
+    rec.status = toggleDone.checked ? 'done' : 'inprogress';
+    saveRecords();
+    render();
+  });
+
+  document.getElementById('templateToggleBtn').addEventListener('click', ()=>{
+    const rec = records.find(r=>r.id===currentDetailId);
+    if(!rec) return;
+    rec.isTemplate = !rec.isTemplate;
+    saveRecords();
+    document.getElementById('templateToggleBtn').textContent = rec.isTemplate ? '★ ひな形から外す' : '⭐ ひな形に登録';
+    render();
+  });
+
+  // ---- ひな形ピッカー：登録済みのひな形一覧から選んで、内容を引き継いだ新規作成フォームを開く ----
+  const templateOverlay = document.getElementById('templateOverlay');
+  const templateGrid = document.getElementById('templateGrid');
+  const templateEmptyState = document.getElementById('templateEmptyState');
+
+  function renderTemplateGrid(){
+    const tpls = records.filter(r=>r.isTemplate);
+    if(tpls.length===0){
+      templateGrid.style.display = 'none';
+      templateEmptyState.style.display = 'block';
+      return;
+    }
+    templateGrid.style.display = '';
+    templateEmptyState.style.display = 'none';
+    templateGrid.innerHTML = tpls.map(r=>
+      '<div class="card" data-id="'+r.id+'">'
+      + '<div class="cardTop"><span class="productNo">'+esc(r.orderNo)+'</span><span class="badgeRow"><span class="badge template">⭐ ひな形</span><button type="button" class="cardDelBtn" data-role="untemplateCard" title="ひな形から外す（カードは削除されません）">✕</button></span></div>'
+      + '<div class="modelName">'+esc(r.modelName || r.itemName || '(名称未設定)')+'</div>'
+      + '<div class="meta"><b>客先：</b>'+esc(r.customer||'-')+'　<b>品目：</b>'+esc(r.category||'-')+'</div>'
+      + '</div>'
+    ).join('');
+  }
+  function openTemplatePicker(){ renderTemplateGrid(); templateOverlay.style.display = 'flex'; }
+  function closeTemplatePicker(){ templateOverlay.style.display = 'none'; }
+  document.getElementById('templateBtn').addEventListener('click', openTemplatePicker);
+  document.getElementById('closeTemplateBtn').addEventListener('click', closeTemplatePicker);
+  templateOverlay.addEventListener('click', (e)=>{ if(e.target===templateOverlay) closeTemplatePicker(); });
+  // ---- ひな形一覧からの「✕」：ひな形フラグを外すだけで、カード自体（受注連絡書一覧の案件）は削除しない ----
+  function removeFromTemplates(id){
+    const rec = records.find(r=>r.id===id);
+    if(!rec) return;
+    const label = rec.orderNo ? '社内No.「'+rec.orderNo+'」' : 'このカード';
+    if(!window.confirm(label+'をひな形から外します。カード自体（受注連絡書）は削除されません。よろしいですか？')) return;
+    rec.isTemplate = false;
+    saveRecords();
+    render();
+    showUndo(label+'をひな形から外しました', ()=>{
+      rec.isTemplate = true;
+      saveRecords();
+      render();
+    });
+  }
+
+  templateGrid.addEventListener('click', (e)=>{
+    const delBtn = e.target.closest('.cardDelBtn');
+    if(delBtn){
+      e.stopPropagation();
+      const card = delBtn.closest('.card');
+      if(card){ removeFromTemplates(card.dataset.id); renderTemplateGrid(); }
+      return;
+    }
+    const card = e.target.closest('.card');
+    if(!card) return;
+    const tpl = records.find(r=>r.id===card.dataset.id);
+    if(!tpl) return;
+    closeTemplatePicker();
+    openFormFromTemplate(tpl);
+  });
+
+  // ひな形の内容を引き継ぎつつ、社内No.・受注日・納期など「新しい案件ごとに変わる項目」だけ空にする
+  function stripDates(rows){
+    return (rows||[]).map(r=> Object.assign({}, r, { from:'', to:'' }));
+  }
+  function openFormFromTemplate(tpl){
+    // 科目（新作／改造／修理／修正／芯出／残工事）はひな形の内容を表す項目なので、以前は強制的に「新作」に上書きしてしまっていたのを修正。
+    // ひな形が「改造」用に作られていた場合など、そのまま引き継がれるようにする。
+    const seed = Object.assign({}, tpl, {
+      id: null, isTemplate: false, status: 'inprogress', status2: '検討',
+      productNo: '', orderNo: '', tCode: '',
+      orderDate: todayStr(), dueDate: '', issueDate1: '', issueDate2: '',
+      designSchedule: stripDates(tpl.designSchedule),
+      costSummary: stripDates(tpl.costSummary),
+      designPlan: stripDates(tpl.designPlan)
+    });
+    openForm(seed);
+  }
+
+  render();
+  renderLastUpdated();
+})();
+</script>
+</body>
+</html>
+                                                                                                                

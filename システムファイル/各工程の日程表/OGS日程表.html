@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OGS日程表｜MIKOSHIYA-iS</title>
+<link rel="stylesheet" href="_procGanttEngine.css">
+<script src="../_sakaeSupabaseConfig.js"></script>
+<script src="../_sakaeSync.js"></script>
+</head>
+<body>
+
+  <div class="topbar">
+    <a class="backLink" id="backLink" href="index.html">← 各工程の日程表 一覧へ</a>
+    <span class="brand"><span class="sakae">MIKOSHIYA</span><span class="is">-iS</span></span>
+    <span class="sep">｜</span>
+    <span class="pageName" id="pageName">OGS日程表</span>
+  </div>
+
+  <div class="wrap">
+
+    <div class="noteBar" id="noteBar"></div>
+
+    <div class="unassignedCard" id="unassignedCard">
+      <div class="unassignedHead">日付未設定の「OGS」工程 <span id="unassignedCount"></span></div>
+      <div class="unassignedList" id="unassignedList"></div>
+    </div>
+
+    <div class="toolRow">
+      <div class="monthToggle" id="monthToggle">
+        <button data-months="1">1ヶ月表示</button>
+        <button data-months="2">2ヶ月表示</button>
+        <button data-months="3">3ヶ月表示</button>
+      </div>
+      <div class="monthToggle" id="zoomToggle">
+        <button type="button" id="zoomOutBtn" title="縮小">－</button>
+        <button type="button" id="zoomResetBtn" title="標準の大きさに戻す">100%</button>
+        <button type="button" id="zoomInBtn" title="拡大">＋</button>
+      </div>
+      <span style="font-size:12.5px; color:#a4adbc;">バーをドラッグすると日程が変わります／右クリックで削除／各日の中央の縦線が午前・午後の区切りです／付箋メモは自由な位置・サイズで配置できます（ハンドルをドラッグで移動、右下でリサイズ、クリックで編集、右クリックで削除）</span>
+    </div>
+
+    <div class="legend" id="legend"></div>
+
+    <div class="ganttCard">
+      <div class="ganttScroll" id="ganttScroll">
+        <div class="ganttInner" id="ganttInner"></div>
+      </div>
+      <div class="emptyState" id="emptyState" style="display:none;"></div>
+    </div>
+
+    <div class="footNote" id="footNote"></div>
+
+  </div>
+
+<script src="_procGanttEngine.js"></script>
+<script>
+  ProcGantt.init({ code:'OGS', color:'#65a30d' });
+</script>
+</body>
+</html>

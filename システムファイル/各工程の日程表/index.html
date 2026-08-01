@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>各工程の日程表｜MIKOSHIYA SEIKI-iS</title>
+<style>
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:#f4f6fa; color:#1a2233;
+    font-family:"Hiragino Sans","Yu Gothic",-apple-system,BlinkMacSystemFont,sans-serif;
+  }
+  .topbar{
+    background:#173a68; color:#fff; padding:12px 24px; display:flex; align-items:center; gap:10px;
+    font-size:15px; font-weight:700;
+  }
+  .topbar .brand{ display:flex; align-items:baseline; gap:2px; }
+  .topbar .brand .sakae{ color:#fff; }
+  .topbar .brand .is{ color:#f0a35c; }
+  .topbar .sep{ color:#5b7aab; }
+  .topbar .pageName{ font-weight:400; color:#cfe0f5; }
+  .topbar .backLink{ margin-right:auto; color:#cfe0f5; text-decoration:none; font-size:13.5px; font-weight:400; }
+  .topbar .backLink:hover{ text-decoration:underline; }
+
+  .wrap{ max-width:980px; margin:0 auto; padding:24px 20px 60px; }
+  .noteBar{
+    background:#fff7ec; border:1px solid #f3dcb8; color:#8a5a1a; font-size:12.5px; border-radius:10px;
+    padding:10px 16px; margin-bottom:20px; line-height:1.6;
+  }
+  .specialCard{
+    background:#fff; border-radius:12px; box-shadow:0 2px 10px rgba(20,35,70,.06); padding:14px 18px; margin-bottom:20px;
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  }
+  .specialCard .stitle{ font-size:12.5px; font-weight:700; color:#5b6b84; flex:0 0 auto; }
+  .specialCard a{
+    display:inline-flex; align-items:center; gap:6px; text-decoration:none; color:#173a68; font-weight:700;
+    font-size:13px; background:#eef3fa; border-radius:8px; padding:7px 14px;
+  }
+  .specialCard a:hover{ background:#dbe6f5; }
+
+  .groupTitle{ font-size:13px; font-weight:700; color:#173a68; margin:22px 0 10px; padding-left:2px; }
+  .grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(150px,1fr)); gap:10px; }
+  .procCard{
+    display:flex; align-items:center; gap:9px; background:#fff; border-radius:10px;
+    box-shadow:0 2px 8px rgba(20,35,70,.06); padding:11px 14px; text-decoration:none; color:#1a2233;
+    border:1px solid transparent;
+  }
+  .procCard:hover{ border-color:#c3cbdb; box-shadow:0 4px 14px rgba(20,35,70,.1); }
+  .procCard .swatch{ width:12px; height:12px; border-radius:3px; flex:0 0 auto; }
+  .procCard .pcode{ font-weight:700; font-size:13.5px; }
+</style>
+<script src="../_sakaeSupabaseConfig.js"></script>
+<script src="../_sakaeSync.js"></script>
+</head>
+<body>
+
+  <div class="topbar">
+    <a class="backLink" href="../../MIKOSHIYA SEIKI-iS.html">← MIKOSHIYA SEIKI-iSトップへ</a>
+    <span class="brand"><span class="sakae">MIKOSHIYA SEIKI</span><span class="is">-iS</span></span>
+    <span class="sep">｜</span>
+    <span class="pageName">各工程の日程表 一覧</span>
+  </div>
+
+  <div class="wrap">
+    <div class="noteBar">
+      工程ごとの日程表を、共通エンジン（_procGanttEngine.js／.css）を使って全工程分まとめて作った一覧です。行は作業票（各品番）を自動的にスキャンして表示するビューで、このページ内から直接データを新規入力するものではありません。バーを動かすと作業票側の日付も更新されます。<br>
+      実際のデータを入れて動かしてみて、項目の過不足・使わない工程・前工程／次工程の自動算出のズレなどがあれば教えてください。
+    </div>
+
+    <div class="specialCard">
+      <span class="stitle">機械別に分かれる特殊な工程（こちらは別ページ）</span>
+      <a href="../NC日程表_モック.html">NC日程表（マ81／マ51／キ／たて）→</a>
+      <a href="../残品表_モック.html">工程別残品表 →</a>
+    </div>
+
+    <div class="groupTitle">準備</div>
+    <div class="grid" id="grid-prep"></div>
+
+    <div class="groupTitle">加工</div>
+    <div class="grid" id="grid-work"></div>
+
+    <div class="groupTitle">仕上げ</div>
+    <div class="grid" id="grid-finish"></div>
+
+    <div class="groupTitle">その他</div>
+    <div class="grid" id="grid-other"></div>
+
+    <div class="groupTitle" id="customGroupTitle" style="display:none;">登録外の工程（作業票で自由入力されたもの）</div>
+    <div class="grid" id="grid-custom"></div>
+  </div>
+
+<script>
+  // 作業票_モック.html の CODE_COLORS / PROCESS_GROUPS と揃えてある（NC1～NC5は機械別のNC日程表で対応済みのためここには含めない）
+  const GROUPS = [
+    { id:'grid-prep', items:[
+      { code:'DE', file:'DE日程表.html', color:'#94a3b8' },
+      { code:'SU', file:'SU日程表.html', color:'#a1a1aa' },
+      { code:'支給', file:'支給日程表.html', color:'#78716c' },
+      { code:'外注', file:'外注日程表.html', color:'#8592a6' },
+    ]},
+    { id:'grid-work', items:[
+      { code:'OMI', file:'OMI日程表.html', color:'#16a34a' },
+      { code:'OGS', file:'OGS日程表.html', color:'#65a30d' },
+      { code:'GS', file:'GS日程表.html', color:'#65a30d' },
+      { code:'LA', file:'LA日程表.html', color:'#7c3aed' },
+      { code:'MI', file:'MI日程表.html', color:'#0d9488' },
+      { code:'JG', file:'JG日程表.html', color:'#ea580c' },
+      { code:'EW', file:'EW日程表.html', color:'#be185d' },
+      { code:'GC', file:'GC日程表.html', color:'#ca8a04' },
+      { code:'EM', file:'EM日程表.html', color:'#0891b2' },
+      { code:'DR', file:'DR日程表.html', color:'#9333ea' },
+      { code:'WEL', file:'WEL日程表.html', color:'#c2410c' },
+      { code:'3D', file:'3D日程表.html', color:'#0ea5e9' },
+    ]},
+    { id:'grid-finish', items:[
+      { code:'FIN', file:'FIN日程表.html', color:'#dc2626' },
+      { code:'NCM', file:'NCM日程表.html', color:'#1d4ed8' },
+      { code:'熱処理', file:'熱処理日程表.html', color:'#92400e' },
+      { code:'ｶﾅｯｸ', file:'ｶﾅｯｸ日程表.html', color:'#4b5563' },
+      { code:'ﾆｭｰｶﾅｯｸ', file:'ﾆｭｰｶﾅｯｸ日程表.html', color:'#6b7280' },
+      { code:'納品', file:'納品日程表.html', color:'#e11d48' },
+    ]},
+    { id:'grid-other', items:[
+      { code:'PN', file:'PN日程表.html', color:'#71717a' },
+    ]},
+  ];
+  function esc(s){ return (s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  GROUPS.forEach(g=>{
+    const el = document.getElementById(g.id);
+    el.innerHTML = g.items.map(it=>
+      '<a class="procCard" href="'+encodeURI(it.file)+'"><span class="swatch" style="background:'+it.color+';"></span><span class="pcode">'+esc(it.code)+'</span></a>'
+    ).join('');
+  });
+
+  // ---- 作業票（部品表）側で自由入力された、上のGROUPSに無い工程名（例：ASS-INS・客先承認など）も、
+  // 専用ページを作らずに1つの汎用ページ（_カスタム日程表.html?code=...）で日程表を開けるようにする。
+  // NC1〜NC5・NCなど「NC」から始まる工程（NCMを除く）は機械別のNC日程表で扱うのでここには出さない。 ----
+  const KNOWN_CODES = new Set();
+  GROUPS.forEach(g=> g.items.forEach(it=> KNOWN_CODES.add(it.code)));
+  function isNCBar(code){
+    if(!code) return false;
+    if(code.indexOf('NCM') === 0) return false;
+    return code.indexOf('NC') === 0;
+  }
+  function colorForCustomCode(s){
+    const palette = ['#7c3aed','#0d9488','#ea580c','#be185d','#0891b2','#9333ea','#c2410c','#4b5563','#e11d48','#71717a','#16a34a','#92400e','#2563eb','#c9720d'];
+    let h = 0;
+    for(let i=0;i<s.length;i++) h = (h*31 + s.charCodeAt(i)) >>> 0;
+    return palette[h % palette.length];
+  }
+  function findCustomCodes(){
+    const codes = new Set();
+    for(let i=0;i<localStorage.length;i++){
+      const key = localStorage.key(i);
+      if(!key || key.indexOf('sakaeIS_buhinhyoMock_v1_')!==0) continue;
+      let bs;
+      try{ bs = JSON.parse(localStorage.getItem(key)); }catch(e){ continue; }
+      if(!bs) continue;
+      (bs.parts||[]).forEach(part=>{
+        (part.processes||[]).forEach(proc=>{
+          const code = (proc.code||'').trim();
+          if(!code || KNOWN_CODES.has(code) || isNCBar(code)) return;
+          codes.add(code);
+        });
+      });
+    }
+    return Array.from(codes).sort((a,b)=> a.localeCompare(b,'ja'));
+  }
+  const customCodes = findCustomCodes();
+  if(customCodes.length){
+    document.getElementById('customGroupTitle').style.display = '';
+    document.getElementById('grid-custom').innerHTML = customCodes.map(code=>
+      '<a class="procCard" href="_カスタム日程表.html?code='+encodeURIComponent(code)+'"><span class="swatch" style="background:'+colorForCustomCode(code)+';"></span><span class="pcode">'+esc(code)+'</span></a>'
+    ).join('');
+  }
+</script>
+</body>
+</html>

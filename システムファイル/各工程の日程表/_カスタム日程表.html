@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>工程日程表｜MIKOSHIYA-iS</title>
+<link rel="stylesheet" href="_procGanttEngine.css">
+<script src="../_sakaeSupabaseConfig.js"></script>
+<script src="../_sakaeSync.js"></script>
+</head>
+<body>
+
+  <div class="topbar">
+    <a class="backLink" id="backLink" href="index.html">← 各工程の日程表 一覧へ</a>
+    <span class="brand"><span class="sakae">MIKOSHIYA</span><span class="is">-iS</span></span>
+    <span class="sep">｜</span>
+    <span class="pageName" id="pageName">工程日程表</span>
+  </div>
+
+  <div class="wrap" id="wrap">
+
+    <div class="noteBar" id="noteBar"></div>
+
+    <div class="unassignedCard" id="unassignedCard">
+      <div class="unassignedHead" id="unassignedHead"><span id="unassignedHeadLabel">日付未設定の工程</span> <span id="unassignedCount"></span></div>
+      <div class="unassignedList" id="unassignedList"></div>
+    </div>
+
+    <div class="toolRow">
+      <div class="monthToggle" id="monthToggle">
+        <button data-months="1">1ヶ月表示</button>
+        <button data-months="2">2ヶ月表示</button>
+        <button data-months="3">3ヶ月表示</button>
+      </div>
+      <div class="monthToggle" id="zoomToggle">
+        <button type="button" id="zoomOutBtn" title="縮小">－</button>
+        <button type="button" id="zoomResetBtn" title="標準の大きさに戻す">100%</button>
+        <button type="button" id="zoomInBtn" title="拡大">＋</button>
+      </div>
+      <span style="font-size:12.5px; color:#a4adbc;">バーをドラッグすると日程が変わります／右クリックで削除／各日の中央の縦線が午前・午後の区切りです／付箋メモは自由な位置・サイズで配置できます（ハンドルをドラッグで移動、右下でリサイズ、クリックで編集、右クリックで削除）</span>
+    </div>
+
+    <div class="legend" id="legend"></div>
+
+    <div class="ganttCard">
+      <div class="ganttScroll" id="ganttScroll">
+        <div class="ganttInner" id="ganttInner"></div>
+      </div>
+      <div class="emptyState" id="emptyState" style="display:none;"></div>
+    </div>
+
+    <div class="footNote" id="footNote"></div>
+
+  </div>
+
+<script src="_procGanttEngine.js"></script>
+<script>
+(function(){
+  // ---- 一覧（PROCESS_GROUPS）に無い自由入力の工程名（例：ASS-INS・客先承認など）のための汎用ページ。
+  // URLの ?code= で工程名を受け取り、共通エンジンをその工程名で初期化する。
+  // 専用ページ（DE日程表.html等）を工程名の数だけ作る代わりに、この1ページで任意の工程名に対応する。 ----
+  const code = (new URLSearchParams(location.search).get('code') || '').trim();
+  if(!code){
+    document.getElementById('wrap').innerHTML =
+      '<div class="noteBar">工程名が指定されていません。<a href="index.html">各工程の日程表 一覧</a>から、登録外の工程（自由入力の工程）のカードを選んで開いてください。</div>';
+    return;
+  }
+  // 一覧ページ（index.html）と同じ考え方の色分け（工程名の文字列から色を決めるだけなので、一覧のカードの色とも揃う）
+  const CUSTOM_PALETTE = ['#7c3aed','#0d9488','#ea580c','#be185d','#0891b2','#9333ea','#c2410c','#4b5563','#e11d48','#71717a','#16a34a','#92400e','#2563eb','#c9720d'];
+  function colorForCustomCode(s){
+    let h = 0;
+    for(let i=0;i<s.length;i++) h = (h*31 + s.charCodeAt(i)) >>> 0;
+    return CUSTOM_PALETTE[h % CUSTOM_PALETTE.length];
+  }
+  const headLabelEl = document.getElementById('unassignedHeadLabel');
+  if(headLabelEl) headLabelEl.textContent = '日付未設定の「' + code + '」工程';
+  ProcGantt.init({ code: code, color: colorForCustomCode(code) });
+})();
+</script>
+</body>
+</html>

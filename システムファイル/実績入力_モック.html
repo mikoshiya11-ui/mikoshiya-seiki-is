@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>実績入力｜MIKOSHIYA SEIKI-iS</title>
+<style>
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:#f4f6fa; color:#1a2233;
+    font-family:"Hiragino Sans","Yu Gothic",-apple-system,BlinkMacSystemFont,sans-serif;
+  }
+  .topbar{
+    background:#173a68; color:#fff; padding:12px 24px; display:flex; align-items:center; gap:10px;
+    font-size:15px; font-weight:700;
+  }
+  .topbar .brand{ display:flex; align-items:baseline; gap:2px; }
+  .topbar .brand .sakae{ color:#fff; }
+  .topbar .brand .is{ color:#f0a35c; }
+  .topbar .sep{ color:#5b7aab; }
+  .topbar .pageName{ font-weight:400; color:#cfe0f5; }
+  .topbar .backLink{ margin-right:auto; color:#cfe0f5; text-decoration:none; font-size:13.5px; font-weight:400; }
+  .topbar .backLink:hover{ text-decoration:underline; }
+
+  .wrap{ max-width:1200px; margin:0 auto; padding:20px 20px 60px; }
+
+  .noteBar{
+    background:#fff7ec; border:1px solid #f3dcb8; color:#8a5a1a; font-size:12.5px; border-radius:10px;
+    padding:10px 16px; margin-bottom:16px; line-height:1.6;
+  }
+
+  .scanCard{
+    background:#173a68; border-radius:14px; box-shadow:0 2px 10px rgba(20,35,70,.15); padding:16px 20px; margin-bottom:16px;
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  }
+  .scanCard .scanLabel{ color:#cfe0f5; font-size:12.5px; font-weight:700; white-space:nowrap; }
+  .scanCard input#scanInput{
+    flex:1 1 320px; min-width:240px; border:none; border-radius:8px; padding:10px 12px; font-size:14px;
+    font-family:"SFMono-Regular",Consolas,monospace; outline:none;
+  }
+  .scanCard input#scanInput.flash{ background:#d7ecd9; }
+  .scanCard .scanHint{ color:#a9c0dd; font-size:11.5px; }
+  .scanCard .manualToggleBtn{
+    border:1.5px solid #35507d; background:transparent; color:#cfe0f5; font-size:12px; font-weight:700; padding:8px 14px;
+    border-radius:8px; cursor:pointer; font-family:inherit; white-space:nowrap;
+  }
+  .scanCard .manualToggleBtn:hover{ border-color:#cfe0f5; }
+
+  /* ---- 直前の登録だけ元に戻せるトースト通知（間違ってスキャンして登録してしまった時のやり直し用） ---- */
+  .undoToast{
+    position:fixed; left:50%; bottom:24px; transform:translateX(-50%); z-index:9999;
+    background:#1a2233; color:#fff; border-radius:10px; padding:11px 16px; font-size:13px;
+    align-items:center; gap:14px; box-shadow:0 8px 28px rgba(0,0,0,.28); display:none;
+  }
+  .undoToast.show{ display:flex; }
+  .undoToast button{
+    border:none; background:#2c72c7; color:#fff; font-weight:700; font-size:12.5px; padding:6px 12px;
+    border-radius:6px; cursor:pointer; font-family:inherit; flex:0 0 auto;
+  }
+  .undoToast button:hover{ filter:brightness(1.1); }
+
+  .manualCard{
+    background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(20,35,70,.06); padding:14px 18px; margin-bottom:16px;
+    display:none; gap:10px; flex-wrap:wrap; align-items:flex-end;
+  }
+  .manualCard.open{ display:flex; }
+  .manualCard .mField{ display:flex; flex-direction:column; gap:4px; }
+  .manualCard .mField label{ font-size:10.5px; font-weight:700; color:#8592a6; }
+  .manualCard select, .manualCard button.manualPick{
+    border:1.5px solid #dfe4ec; border-radius:7px; padding:7px 10px; font-size:12.5px; font-family:inherit; color:#1a2233;
+    min-width:160px;
+  }
+  .manualCard button.manualPick{ background:#173a68; color:#fff; border:none; cursor:pointer; font-weight:700; min-width:auto; }
+
+  .entryCard{
+    background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(20,35,70,.06); padding:18px 20px; margin-bottom:20px;
+  }
+  .entryCard .curTitle{ font-size:12.5px; font-weight:700; color:#5b6b84; margin-bottom:10px; }
+  .curInfo{
+    display:grid; grid-template-columns:repeat(5, 1fr); gap:8px 16px; margin-bottom:14px;
+    background:#f7f9fc; border-radius:10px; padding:12px 14px;
+  }
+  .curInfo .ciItem{ display:flex; flex-direction:column; gap:2px; }
+  .curInfo .ciItem .ciLabel{ font-size:9.5px; font-weight:700; color:#8592a6; }
+  .curInfo .ciItem .ciVal{ font-size:13px; font-weight:700; color:#173a68; min-height:16px; }
+  .curInfo .ciItem .ciVal.muted{ color:#c7cfdc; font-weight:400; }
+
+  .fieldRow{ display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; }
+  .fieldRow .fItem{ display:flex; flex-direction:column; gap:4px; }
+  .fieldRow .fItem label{ font-size:10.5px; font-weight:700; color:#8592a6; }
+  .fieldRow input, .fieldRow select{
+    border:1.5px solid #dfe4ec; border-radius:7px; padding:8px 10px; font-size:13.5px; font-family:inherit; color:#1a2233;
+    width:110px;
+  }
+  .fieldRow input:focus, .fieldRow select:focus{ outline:none; border-color:#173a68; background:#f4f8ff; }
+  .fieldRow input#employeeNo{ width:90px; }
+  .fieldRow input#dateInput{ width:150px; }
+  .fieldRow select#defectFlag{ width:90px; }
+  .fieldRow .commitBtn{
+    border:none; background:#e67e22; color:#fff; font-size:13px; font-weight:700; padding:9px 20px;
+    border-radius:8px; cursor:pointer; font-family:inherit; height:37px;
+  }
+  .fieldRow .commitBtn:hover{ filter:brightness(1.08); }
+  .fieldRow .clearBtn{
+    border:1.5px solid #dfe4ec; background:#fff; color:#8592a6; font-size:12.5px; font-weight:700; padding:8px 14px;
+    border-radius:8px; cursor:pointer; font-family:inherit; height:37px;
+  }
+
+  .listCard{
+    background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(20,35,70,.06); overflow:hidden;
+  }
+  .listHead{ display:flex; align-items:center; gap:10px; padding:14px 18px; border-bottom:1px solid #eef1f6; flex-wrap:wrap; }
+  .listHead .lTitle{ font-size:12.5px; font-weight:700; color:#5b6b84; }
+  .listHead .lCount{ font-size:12px; color:#a4adbc; }
+  .listHead input#filterDate{
+    margin-left:auto; border:1.5px solid #dfe4ec; border-radius:7px; padding:6px 10px; font-size:12px; font-family:inherit;
+  }
+  table.logTable{ width:100%; border-collapse:collapse; }
+  table.logTable th{
+    font-size:10.5px; font-weight:700; color:#5b6b84; text-align:left; padding:8px 10px; border-bottom:1.5px solid #dfe4ec;
+    background:#f7f9fc; white-space:nowrap;
+  }
+  table.logTable td{ font-size:12px; padding:7px 10px; border-bottom:1px solid #eef1f6; color:#3a4a63; white-space:nowrap; }
+  table.logTable td.codeCell{ font-weight:700; }
+  table.logTable td.numCell{ text-align:right; }
+  table.logTable tr:hover td{ background:#f7f9fc; }
+  table.logTable .delBtn{
+    border:none; background:transparent; color:#c0392b; cursor:pointer; font-size:12px; padding:2px 6px;
+  }
+  .emptyRow{ padding:30px 20px; text-align:center; color:#a4adbc; font-size:12.5px; }
+
+  .footNote{ font-size:12.5px; color:#a4adbc; text-align:center; margin-top:20px; line-height:1.7; }
+</style>
+<script src="_sakaeSupabaseConfig.js"></script>
+<script src="_sakaeSync.js"></script>
+</head>
+<body>
+
+  <div class="topbar">
+    <a class="backLink" href="../MIKOSHIYA SEIKI-iS.html">← トップへ</a>
+    <span class="brand"><span class="sakae">MIKOSHIYA SEIKI</span><span class="is">-iS</span></span>
+    <span class="sep">｜</span>
+    <span class="pageName">実績入力（モック：バーコード連続入力）</span>
+  </div>
+
+  <div class="wrap">
+
+    <div class="noteBar">
+      作業票に印刷したバーコード（品番・部品・工程）を読み取ると、下の「今回の対象」が自動入力されます。あとは紙に書かれた実績の数字を入力してEnter（または「登録する」）を押すだけです。バーコードリーダーが無い場合は「品番から選ぶ」で手動入力もできます。
+    </div>
+
+    <div class="scanCard">
+      <span class="scanLabel">📷 ここにカーソルを置いてバーコードを読み取ってください</span>
+      <input type="text" id="scanInput" placeholder="バーコードをスキャン（テスト時は品番-部品コード-工程コード を入力してEnter）" autocomplete="off">
+      <button type="button" class="manualToggleBtn" id="manualToggleBtn">品番から選ぶ（手動）</button>
+    </div>
+
+    <div class="manualCard" id="manualCard">
+      <div class="mField"><label>品番</label>
+        <select id="manualProduct"><option value="">選択してください</option></select>
+      </div>
+      <div class="mField"><label>部品</label>
+        <select id="manualPart"><option value="">－</option></select>
+      </div>
+      <div class="mField"><label>工程</label>
+        <select id="manualProc"><option value="">－</option></select>
+      </div>
+      <button type="button" class="manualPick" id="manualPickBtn">この工程を対象にする</button>
+    </div>
+
+    <div class="entryCard">
+      <div class="curTitle">今回の対象</div>
+      <div class="curInfo" id="curInfo"></div>
+
+      <div class="fieldRow">
+        <div class="fItem"><label>日付</label><input type="date" id="dateInput"></div>
+        <div class="fItem"><label>社員No</label><input type="text" id="employeeNo" placeholder="例）16"></div>
+        <div class="fItem"><label>段取(h)</label><input type="number" step="0.1" min="0" id="setupHours"></div>
+        <div class="fItem"><label>有人(h)</label><input type="number" step="0.1" min="0" id="mannedHours"></div>
+        <div class="fItem"><label>無人(h)</label><input type="number" step="0.1" min="0" id="unmannedHours"></div>
+        <div class="fItem"><label>夜間(h)</label><input type="number" step="0.1" min="0" id="nightHours"></div>
+        <div class="fItem"><label>数量</label><input type="number" step="1" min="0" id="qtyInput"></div>
+        <div class="fItem"><label>良否</label>
+          <select id="defectFlag"><option value="良">良</option><option value="否">否</option></select>
+        </div>
+        <button type="button" class="commitBtn" id="commitBtn">登録する（Enter）</button>
+        <button type="button" class="clearBtn" id="clearBtn">対象をクリア</button>
+      </div>
+    </div>
+
+    <div class="listCard">
+      <div class="listHead">
+        <span class="lTitle">入力済み実績</span>
+        <span class="lCount" id="logCount"></span>
+        <input type="date" id="filterDate" title="この日だけ表示">
+      </div>
+      <div id="logListArea"></div>
+    </div>
+
+    <div class="footNote">
+      入力したデータは sakaeIS_jissekiLog_v1 として保存され、工数・変動費集計の元データになります（このページはまだモックです）。
+    </div>
+
+  </div>
+
+  <div class="undoToast" id="undoToast">
+    <span id="undoToastText"></span>
+    <button type="button" id="undoToastBtn">元に戻す</button>
+  </div>
+
+<script>
+(function(){
+  function esc(s){
+    return (s==null?'':s).toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  function uid(){ return Math.random().toString(36).slice(2,9); }
+  function todayStr(){
+    const d = new Date();
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+
+  const BUHIN_PREFIX = 'sakaeIS_buhinhyoMock_v1_';
+  const LOG_KEY = 'sakaeIS_jissekiLog_v1';
+
+  // ---- 直前の1件だけ元に戻せるトースト通知（間違ってスキャン→登録してしまった時のやり直し用）。
+  // 新しく別の登録をすると、前の「戻す」は上書きされて消える（複数段階は戻せない） ----
+  let lastUndo = null;
+  let undoToastTimer = null;
+  const undoToastEl = document.getElementById('undoToast');
+  const undoToastTextEl = document.getElementById('undoToastText');
+  const undoToastBtn = document.getElementById('undoToastBtn');
+  function showUndo(message, undoFn){
+    lastUndo = { undo: undoFn };
+    undoToastTextEl.textContent = message;
+    undoToastEl.classList.add('show');
+    if(undoToastTimer) clearTimeout(undoToastTimer);
+    undoToastTimer = setTimeout(()=>{ undoToastEl.classList.remove('show'); lastUndo = null; }, 8000);
+  }
+  if(undoToastBtn){
+    undoToastBtn.addEventListener('click', ()=>{
+      if(!lastUndo) return;
+      const fn = lastUndo.undo;
+      lastUndo = null;
+      undoToastEl.classList.remove('show');
+      if(undoToastTimer) clearTimeout(undoToastTimer);
+      fn();
+    });
+  }
+
+  // ---- 作業票を横断スキャンして「品番→部品→工程」を引けるようにする（実績ログの元になる唯一の情報源） ----
+  function scanAllProducts(){
+    const list = [];
+    for(let i=0;i<localStorage.length;i++){
+      const key = localStorage.key(i);
+      if(!key || key.indexOf(BUHIN_PREFIX)!==0) continue;
+      let bs;
+      try{ bs = JSON.parse(localStorage.getItem(key)); }catch(e){ continue; }
+      if(!bs || !bs.order) continue;
+      list.push(bs);
+    }
+    return list;
+  }
+  // ---- Code39は日本語や「(」「)」を表現できないため、作業票印刷側は工程コードの先頭の英数字部分だけを
+  // バーコードに使っている（例：「DG(外注-材料直送)」→「DG」）。ここでも同じ削り方をして照合する ----
+  function barcodeSafeCode(code){
+    const m = String(code||'').match(/^[A-Za-z0-9]+/);
+    return m ? m[0] : '';
+  }
+  // ---- 手動選択でも、バーコード読み取りと同じ「紙に印字されてる部品ごとの番号」を画面に表示するための計算 ----
+  function displayNoFor(orderProductNo, part){
+    const base = (orderProductNo||'').trim();
+    const m = base.match(/^(\d+?)(\d{3})-(\d{2})$/);
+    if(m && part && part.subNo){
+      return m[1] + String(part.subNo).padStart(3,'0') + '-' + m[3];
+    }
+    return base + (part && part.subNo ? ('-'+part.subNo) : '');
+  }
+  function findByBarcodeKey(rawKey){
+    const trimmed = (rawKey||'').trim();
+    if(!trimmed) return null;
+    const segs = trimmed.split('-');
+    if(segs.length < 2) return null;
+    const processCode = segs[segs.length-1];
+    const partNoText = segs.slice(0, segs.length-1).join('-'); // 作業票印刷に印字されてる「NO.」の文字列と同じもの
+
+    // 1) 実際の採番ルール（5桁品番＋3桁の部品ごとの枝番＋2桁の任意コード。例：35481001-11）で読み解けるか試す。
+    //    このルールに沿った番号は「品番-部品コード-工程コード」のような単純な3分割ではなく、部品ごとに全体の数字が
+    //    変わる特殊な形なので、登録済みの全案件を横断して、同じ考え方で組み立てた番号が一致するものを探す
+    const m = partNoText.match(/^(\d+?)(\d{3})-(\d{2})$/);
+    if(m){
+      const found = findByRealNumberingRule(m[1], m[2], m[3], processCode);
+      if(found) return found;
+    }
+
+    // 2) 採番ルールに当てはまらない品番（デモ品番など）は、従来通り「品番-部品の社内No[枝番]-工程コード」として解釈する
+    if(segs.length >= 3){
+      const partSubNo = segs[segs.length-2];
+      const productNo = segs.slice(0, segs.length-2).join('-');
+      return findByTriple(productNo, partSubNo, processCode);
+    }
+    return null;
+  }
+  // ---- 採番ルール（品番＋部品ごとの枝番＋任意コード）を理解して、全案件の中から一致する部品を逆引きする ----
+  function findByRealNumberingRule(base, subNoDigits, suffix, processCode){
+    const list = scanAllProducts();
+    for(const bs of list){
+      if(!bs || !bs.order) continue;
+      const orderBase = (bs.order.productNo||'').trim();
+      const om = orderBase.match(/^(\d+?)(\d{3})-(\d{2})$/);
+      if(!om || om[1]!==base || om[3]!==suffix) continue;
+      const part = (bs.parts||[]).find(p=> p.subNo && String(p.subNo).padStart(3,'0')===subNoDigits);
+      if(!part) continue;
+      const proc = (part.processes||[]).find(p=> barcodeSafeCode(p.code)===processCode);
+      if(!proc) continue;
+      return {
+        // productNoは案件を紐づけるための内部キー（例：49171000-11）。displayNoは実際にスキャンした・紙に印字されてる
+        // 部品ごとの番号（例：49171001-11）。画面には読み取った番号と同じdisplayNoの方を表示して迷わないようにする
+        productNo: bs.order.productNo||orderBase, displayNo: base+subNoDigits+'-'+suffix,
+        customerName: bs.order.customer||'', modelName: bs.order.model||'',
+        partId: part.id, partCode: part.subNo||part.code||'', partName: part.name||'',
+        procId: proc.id, processCode: proc.code
+      };
+    }
+    return null;
+  }
+  function findByTriple(productNo, partSubNo, processCode){
+    const key = BUHIN_PREFIX + productNo;
+    let bs;
+    try{ bs = JSON.parse(localStorage.getItem(key)); }catch(e){ return null; }
+    if(!bs || !bs.order) return null;
+    const part = (bs.parts||[]).find(p=> String(p.subNo)===String(partSubNo));
+    if(!part) return null;
+    const proc = (part.processes||[]).find(p=> barcodeSafeCode(p.code)===processCode);
+    if(!proc) return null;
+    return {
+      productNo: bs.order.productNo||productNo, displayNo: bs.order.productNo||productNo,
+      customerName: bs.order.customer||'', modelName: bs.order.model||'',
+      partId: part.id, partCode: part.subNo||part.code||'', partName: part.name||'',
+      procId: proc.id, processCode: proc.code
+    };
+  }
+
+  function loadLog(){
+    try{ const raw = localStorage.getItem(LOG_KEY); if(raw) return JSON.parse(raw); }catch(e){}
+    return [];
+  }
+  function saveLog(){ localStorage.setItem(LOG_KEY, JSON.stringify(logEntries)); }
+  let logEntries = loadLog();
+
+  // ---- 今回の対象（バーコード読み取り or 手動選択で確定する） ----
+  let current = null; // {productNo, customerName, modelName, partId, partCode, partName, procId, processCode}
+
+  const curInfoEl = document.getElementById('curInfo');
+  function renderCurInfo(){
+    if(!current){
+      curInfoEl.innerHTML = ['品番','客先/型式','部品','工程','（未選択）'].map(()=>'').join('');
+      curInfoEl.innerHTML =
+        '<div class="ciItem"><span class="ciLabel">品番</span><span class="ciVal muted">―</span></div>'
+        + '<div class="ciItem"><span class="ciLabel">客先／型式</span><span class="ciVal muted">―</span></div>'
+        + '<div class="ciItem"><span class="ciLabel">部品</span><span class="ciVal muted">―</span></div>'
+        + '<div class="ciItem"><span class="ciLabel">工程</span><span class="ciVal muted">バーコードを読み取ってください</span></div>'
+        + '<div class="ciItem"><span class="ciLabel">連携</span><span class="ciVal muted">―</span></div>';
+      return;
+    }
+    curInfoEl.innerHTML =
+      '<div class="ciItem"><span class="ciLabel">品番</span><span class="ciVal">'+esc(current.displayNo||current.productNo)+'</span></div>'
+      + '<div class="ciItem"><span class="ciLabel">客先／型式</span><span class="ciVal">'+esc(current.customerName)+' / '+esc(current.modelName)+'</span></div>'
+      + '<div class="ciItem"><span class="ciLabel">部品</span><span class="ciVal">'+esc(current.partCode)+' '+esc(current.partName)+'</span></div>'
+      + '<div class="ciItem"><span class="ciLabel">工程</span><span class="ciVal">'+esc(current.processCode)+'</span></div>'
+      + '<div class="ciItem"><span class="ciLabel">作業票と連携</span><span class="ciVal" style="color:#16a34a;">🔗 連携済み</span></div>';
+  }
+
+  const scanInput = document.getElementById('scanInput');
+  function focusScan(){ scanInput.focus(); scanInput.select(); }
+
+  function setCurrentFromMatch(match, sourceLabel){
+    if(!match){
+      alert('作業票の中に一致する品番・部品・工程が見つかりませんでした（'+sourceLabel+'）。作業票側の登録内容をご確認ください。');
+      return;
+    }
+    current = match;
+    renderCurInfo();
+    document.getElementById('employeeNo').focus();
+  }
+
+  scanInput.addEventListener('keydown', (e)=>{
+    if(e.key !== 'Enter') return;
+    e.preventDefault();
+    const val = scanInput.value.trim();
+    scanInput.value = '';
+    if(!val) return;
+    scanInput.classList.add('flash');
+    setTimeout(()=> scanInput.classList.remove('flash'), 150);
+    const match = findByBarcodeKey(val);
+    setCurrentFromMatch(match, 'スキャン内容：'+val);
+  });
+
+  // ---- 手動選択（バーコードリーダーが無い場合の代替） ----
+  const manualToggleBtn = document.getElementById('manualToggleBtn');
+  const manualCard = document.getElementById('manualCard');
+  manualToggleBtn.addEventListener('click', ()=>{
+    manualCard.classList.toggle('open');
+    if(manualCard.classList.contains('open')) populateManualProducts();
+  });
+  const manualProductSel = document.getElementById('manualProduct');
+  const manualPartSel = document.getElementById('manualPart');
+  const manualProcSel = document.getElementById('manualProc');
+  let manualProductsCache = [];
+  function populateManualProducts(){
+    manualProductsCache = scanAllProducts();
+    manualProductSel.innerHTML = '<option value="">選択してください</option>'
+      + manualProductsCache.map(bs=>'<option value="'+esc(bs.order.productNo)+'">'+esc(bs.order.productNo)+'　'+esc(bs.order.model||'')+'（'+esc(bs.order.customer||'')+'）</option>').join('');
+    manualPartSel.innerHTML = '<option value="">－</option>';
+    manualProcSel.innerHTML = '<option value="">－</option>';
+  }
+  manualProductSel.addEventListener('change', ()=>{
+    const bs = manualProductsCache.find(b=>b.order.productNo===manualProductSel.value);
+    if(!bs || !bs.parts || !bs.parts.length){
+      manualPartSel.innerHTML = '<option value="">（部品なし）</option>';
+      manualProcSel.innerHTML = '<option value="">－</option>';
+      return;
+    }
+    manualPartSel.innerHTML = bs.parts.map(p=>'<option value="'+esc(p.id)+'">'+esc(p.subNo||p.code||'')+' '+esc(p.name||'')+'</option>').join('');
+    manualPartSel.dispatchEvent(new Event('change'));
+  });
+  manualPartSel.addEventListener('change', ()=>{
+    const bs = manualProductsCache.find(b=>b.order.productNo===manualProductSel.value);
+    const part = bs && (bs.parts||[]).find(p=>p.id===manualPartSel.value);
+    if(!part || !part.processes || !part.processes.length){
+      manualProcSel.innerHTML = '<option value="">（工程なし）</option>';
+      return;
+    }
+    manualProcSel.innerHTML = part.processes.map(p=>'<option value="'+esc(p.id)+'">'+esc(p.code||'')+(p.date?'（'+esc(p.date)+'）':'')+'</option>').join('');
+  });
+  document.getElementById('manualPickBtn').addEventListener('click', ()=>{
+    const bs = manualProductsCache.find(b=>b.order.productNo===manualProductSel.value);
+    const part = bs && (bs.parts||[]).find(p=>p.id===manualPartSel.value);
+    const proc = part && (part.processes||[]).find(p=>p.id===manualProcSel.value);
+    if(!bs || !part || !proc){ alert('品番・部品・工程をすべて選んでください。'); return; }
+    setCurrentFromMatch({
+      productNo: bs.order.productNo, displayNo: displayNoFor(bs.order.productNo, part),
+      customerName: bs.order.customer||'', modelName: bs.order.model||'',
+      partId: part.id, partCode: part.subNo||part.code||'', partName: part.name||'',
+      procId: proc.id, processCode: proc.code
+    }, '手動選択');
+    manualCard.classList.remove('open');
+  });
+
+  // ---- 実績の登録 ----
+  const dateInput = document.getElementById('dateInput');
+  dateInput.value = todayStr();
+  const employeeNoInput = document.getElementById('employeeNo');
+  const setupHoursInput = document.getElementById('setupHours');
+  const mannedHoursInput = document.getElementById('mannedHours');
+  const unmannedHoursInput = document.getElementById('unmannedHours');
+  const nightHoursInput = document.getElementById('nightHours');
+  const qtyInput = document.getElementById('qtyInput');
+  const defectFlagSel = document.getElementById('defectFlag');
+
+  function numOrZero(el){ const v = Number(el.value); return isFinite(v) ? v : 0; }
+
+  function commitEntry(){
+    if(!current){ alert('先にバーコードを読み取るか、品番から選んでください。'); focusScan(); return; }
+    const entry = {
+      id: uid(),
+      date: dateInput.value || todayStr(),
+      employeeNo: employeeNoInput.value.trim(),
+      productNo: current.productNo, displayNo: current.displayNo||current.productNo,
+      customerName: current.customerName, modelName: current.modelName,
+      partId: current.partId, partCode: current.partCode, partName: current.partName,
+      procId: current.procId, processCode: current.processCode,
+      setupHours: numOrZero(setupHoursInput), mannedHours: numOrZero(mannedHoursInput),
+      unmannedHours: numOrZero(unmannedHoursInput), nightHours: numOrZero(nightHoursInput),
+      qty: qtyInput.value ? Number(qtyInput.value) : '',
+      defectFlag: defectFlagSel.value,
+      createdAt: new Date().toISOString()
+    };
+    logEntries.push(entry);
+    saveLog();
+    // 間違ってスキャン・登録してしまった時にすぐ取り消せるよう、直前の1件だけ元に戻せるトーストを出す
+    showUndo('登録しました（'+(entry.displayNo||entry.productNo)+' '+entry.partName+' '+entry.processCode+'）', ()=>{
+      logEntries = loadLog().filter(x=>x.id!==entry.id);
+      saveLog();
+      renderLog();
+    });
+    // 次の1件へ：日付・社員Noは引き継ぎ、対象と数値だけリセット（同じ人がまとめて処理することが多いため）
+    current = null;
+    renderCurInfo();
+    [setupHoursInput, mannedHoursInput, unmannedHoursInput, nightHoursInput, qtyInput].forEach(el=> el.value='');
+    defectFlagSel.value = '良';
+    renderLog();
+    focusScan();
+  }
+  document.getElementById('commitBtn').addEventListener('click', commitEntry);
+  document.getElementById('clearBtn').addEventListener('click', ()=>{
+    current = null; renderCurInfo(); focusScan();
+  });
+  // Enterキーで登録欄内のどこからでも登録できるようにする（社員No〜良否のどこでEnterしても良い）
+  [employeeNoInput, setupHoursInput, mannedHoursInput, unmannedHoursInput, nightHoursInput, qtyInput].forEach(el=>{
+    el.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); commitEntry(); } });
+  });
+
+  // ---- 入力済み一覧 ----
+  const logListArea = document.getElementById('logListArea');
+  const logCountEl = document.getElementById('logCount');
+  const filterDateInput = document.getElementById('filterDate');
+  function renderLog(){
+    logEntries = loadLog();
+    let list = logEntries.slice().sort((a,b)=> (b.createdAt||'').localeCompare(a.createdAt||''));
+    if(filterDateInput.value){
+      list = list.filter(e=> e.date === filterDateInput.value);
+    }
+    logCountEl.textContent = '（'+list.length+'件）';
+    if(!list.length){
+      logListArea.innerHTML = '<div class="emptyRow">まだ実績がありません。バーコードを読み取って登録してください。</div>';
+      return;
+    }
+    logListArea.innerHTML = '<table class="logTable"><thead><tr>'
+      + '<th>日付</th><th>社員No</th><th>品番</th><th>客先／型式</th><th>部品</th><th>工程</th>'
+      + '<th>段取</th><th>有人</th><th>無人</th><th>夜間</th><th>数量</th><th>良否</th><th></th>'
+      + '</tr></thead><tbody>'
+      + list.map(e=>
+        '<tr data-id="'+esc(e.id)+'">'
+        + '<td>'+esc(e.date)+'</td>'
+        + '<td>'+esc(e.employeeNo||'―')+'</td>'
+        + '<td class="codeCell">'+esc(e.displayNo||e.productNo)+'</td>'
+        + '<td>'+esc(e.customerName)+' / '+esc(e.modelName)+'</td>'
+        + '<td>'+esc(e.partCode)+' '+esc(e.partName)+'</td>'
+        + '<td class="codeCell">'+esc(e.processCode)+'</td>'
+        + '<td class="numCell">'+esc(e.setupHours||0)+'</td>'
+        + '<td class="numCell">'+esc(e.mannedHours||0)+'</td>'
+        + '<td class="numCell">'+esc(e.unmannedHours||0)+'</td>'
+        + '<td class="numCell">'+esc(e.nightHours||0)+'</td>'
+        + '<td class="numCell">'+esc(e.qty||'―')+'</td>'
+        + '<td>'+esc(e.defectFlag||'良')+'</td>'
+        + '<td><button type="button" class="delBtn" data-role="del" data-id="'+esc(e.id)+'">✕</button></td>'
+        + '</tr>'
+      ).join('')
+      + '</tbody></table>';
+  }
+  logListArea.addEventListener('click', (e)=>{
+    const btn = e.target.closest('[data-role="del"]');
+    if(!btn) return;
+    if(!confirm('この実績を削除しますか？')) return;
+    logEntries = loadLog().filter(x=>x.id!==btn.dataset.id);
+    saveLog();
+    renderLog();
+  });
+  filterDateInput.addEventListener('change', renderLog);
+
+  window.addEventListener('storage', (e)=>{
+    if(!e.key) return;
+    if(e.key===LOG_KEY || e.key.indexOf(BUHIN_PREFIX)===0) renderLog();
+  });
+
+  renderCurInfo();
+  renderLog();
+  focusScan();
+})();
+</script>
+</body>
+</html>

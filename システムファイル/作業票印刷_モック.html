@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>作業票印刷｜MIKOSHIYA SEIKI-iS</title>
+<style>
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:#f4f6fa; color:#1a2233;
+    font-family:"Hiragino Sans","Yu Gothic",-apple-system,BlinkMacSystemFont,sans-serif;
+  }
+  .topbar{
+    background:#173a68; color:#fff; padding:10px 24px; display:flex; align-items:center; gap:10px;
+    font-size:13px; font-weight:700;
+  }
+  .topbar .brand{ display:flex; align-items:baseline; gap:2px; }
+  .topbar .brand .sakae{ color:#fff; }
+  .topbar .brand .is{ color:#f0a35c; }
+  .topbar .sep{ color:#5b7aab; }
+  .topbar .pageName{ font-weight:400; color:#cfe0f5; }
+  .topbar .backLink{ margin-right:auto; color:#cfe0f5; text-decoration:none; font-size:12px; font-weight:400; }
+  .topbar .backLink:hover{ text-decoration:underline; }
+
+  .wrap{ max-width:1700px; margin:0 auto; padding:20px 20px 60px; }
+
+  .noteBar{
+    background:#fff7ec; border:1px solid #f3dcb8; color:#8a5a1a; font-size:12.5px; border-radius:10px;
+    padding:10px 16px; margin-bottom:16px; line-height:1.6;
+  }
+
+  .controlBar{
+    background:#fff; border-radius:12px; box-shadow:0 2px 10px rgba(20,35,70,.06); padding:14px 18px;
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:18px;
+  }
+  .controlBar .ctitle{ font-size:12.5px; font-weight:700; color:#5b6b84; }
+  .controlBar .printBtn{
+    margin-left:auto; border:none; background:#173a68; color:#fff; font-size:12px; font-weight:700; padding:8px 16px;
+    border-radius:8px; cursor:pointer; font-family:inherit;
+  }
+  .controlBar .printBtn:hover{ background:#0f2b4f; }
+
+  .emptyState{ padding:60px 20px; text-align:center; color:#a4adbc; font-size:13px; line-height:1.8; }
+
+  /* ---- 作業票の帳票（現物のA3横1枚＝左「作業票」＋完了チケット／右「作業票（控）」＋控えタグ、を再現） ---- */
+  .slipSheet{
+    background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(20,35,70,.06); margin-bottom:22px;
+    border:1px solid #e6eaf1; display:flex; overflow:hidden;
+  }
+  .slipSheet .divider{ flex:0 0 14px; background:repeating-linear-gradient(180deg,#dfe4ec,#dfe4ec 4px,transparent 4px,transparent 9px); }
+
+  .slipPanel{ flex:1 1 0; min-width:0; display:flex; }
+
+  /* 左端の縦書きラベル（現物の「作業票」「作業票（控）」「NO.」の縦書き部分） */
+  .slipSideLabel{
+    flex:0 0 26px; background:#f7f9fc; border-right:1.5px solid #222; display:flex; flex-direction:column;
+    align-items:center; justify-content:flex-start; gap:14px; padding:14px 0; writing-mode:vertical-rl; text-orientation:upright;
+  }
+  .slipSideLabel .slipSideTitle{ font-size:12px; font-weight:800; color:#173a68; letter-spacing:.08em; }
+  /* 品番だけは現物と同じく、縦書きの中で横書きの文字列をそのまま90度回転させて表示する */
+  .slipSideLabel .slipSideNo{ font-size:11px; font-weight:700; color:#c0392b; letter-spacing:.04em; text-orientation:sideways; }
+  /* 工程が13以上あって2枚目以降ができた時の「2/3枚目」表示 */
+  .slipSideLabel .slipSidePage{ font-size:10px; font-weight:700; color:#5b6b84; letter-spacing:.04em; text-orientation:sideways; }
+
+  /* slipMainと下段（タグ or チケット）を縦に積む入れ物 */
+  .slipBody{ flex:1 1 auto; min-width:0; display:flex; flex-direction:column; }
+  .slipMain{ padding:10px 14px 12px; }
+
+  .slipTopRow{ display:flex; border:1.5px solid #222; }
+  .sketchBox{
+    flex:0 0 110px; border-right:1.5px solid #222; display:flex; align-items:flex-start; justify-content:flex-start;
+    padding:6px 8px;
+  }
+  .sketchBox .sketchLabel{ font-size:10.5px; font-weight:700; color:#a4adbc; }
+
+  .procTableWrap{ flex:1 1 auto; min-width:0; display:flex; }
+  table.procTable{ border-collapse:collapse; width:100%; table-layout:fixed; align-self:stretch; }
+  table.procTable td, table.procTable th{
+    border-top:1px solid #dfe4ec; border-right:1px solid #dfe4ec; padding:2px 6px; font-size:11px; vertical-align:middle;
+  }
+  table.procTable td:last-child, table.procTable th:last-child{ border-right:none; }
+  table.procTable tr:first-child td{ border-top:none; }
+  table.procTable td{ overflow:hidden; text-overflow:ellipsis; }
+  table.procTable td.noteCell{ color:#5b6b84; font-size:11px; width:auto; }
+  table.procTable tr.emptyRow td{ color:transparent; }
+  table.procTable tr.procHeadRow th{
+    font-size:10px; font-weight:700; color:#5b6b84; text-align:center; background:#f7f9fc;
+    border-top:1.5px solid #222; line-height:1.3;
+  }
+  .codeSwatch{ display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:4px; vertical-align:middle; }
+
+  /* ---- 現物と同じく「機械名/外注人名」「NO./工程」「着手」「完成」「実働H/見積H」はいずれも1セル内で上段（空欄・点線）/下段（印字値）の2段構成。
+     「着手」「完成」は横に並んだ別々のカラムだが、それぞれの中身は他と同じ2段構成。完成はまだ値を入れない（空欄のまま）。
+     列の境界が分かりやすいよう縦罫線も入れている ---- */
+  table.procTable td.machineCell{ width:15%; padding:0; }
+  table.procTable td.noCodeCell{ width:13%; padding:0; }
+  table.procTable td.hoursStackCell{ width:11%; padding:0; }
+  table.procTable td.startCell{ width:9%; padding:0; }
+  table.procTable td.finishCell{ width:9%; padding:0; }
+  .cellLine{ height:15px; padding:1px 6px; font-size:10px; line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cellLineTop{ color:#c7cfdc; border-bottom:1px dashed transparent; }
+  .cellLineTop.dotted{ border-bottom:1px dashed #c7cfdc; }
+  .cellLineTop .tinyNo{ color:#8592a6; font-weight:700; }
+  .cellLineBottom{ font-weight:700; color:#1a2233; }
+
+  /* NO./工程は「数字→工程名」を1つの文として上段からそのまま流し込み、長い工程名は下段へ折り返す（省略せず2行分使う） */
+  .noCodeWrap{
+    height:30px; padding:1px 6px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+    overflow:hidden; font-size:10px; line-height:1.3; font-weight:700; color:#1a2233;
+  }
+  .noCodeWrap .tinyNo{ color:#8592a6; font-weight:700; margin-right:3px; }
+
+  /* 略図・工程表の下：品名／品番／型式／納期などの情報欄（現物の下段情報欄と同じ並び） */
+  .slipInfoGrid{ border:1.5px solid #222; border-top:none; }
+  .infoRow{ display:flex; border-top:1px solid #222; }
+  .infoRow:first-child{ border-top:none; }
+  .infoCell{ flex:1 1 0; display:flex; border-right:1px solid #222; min-width:0; }
+  .infoCell:last-child{ border-right:none; }
+  .infoCell.wide{ flex:2 1 0; }
+  .infoCell.narrow{ flex:0.7 1 0; }
+  .infoCell .iLabel{
+    flex:0 0 auto; font-size:8.5px; font-weight:700; color:#8592a6; background:#f7f9fc;
+    padding:2px 5px; border-right:1px solid #222; display:flex; align-items:center; white-space:nowrap;
+  }
+  .infoCell .iVal{ flex:1 1 auto; font-size:9px; font-weight:700; color:#1a2233; padding:2px 6px; display:flex; align-items:center; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .issueRow{ font-size:10px; color:#5b6b84; padding:3px 8px; border-top:1px solid #222; }
+
+  /* ---- 右側下段：社内No/品名/型式/数量の控えタグ（8枚・全部同じ内容） ---- */
+  .tagSheet{ display:grid; grid-template-columns:1fr 1fr; gap:11px; padding:12px 14px; }
+  .tagBox{ border:1.5px solid #8592a6; border-radius:5px; padding:10px 14px; }
+  .tagBox .tagRow{ display:flex; align-items:baseline; gap:9px; padding:3px 0; font-size:12px; }
+  .tagBox .tagLabel{ flex:0 0 48px; font-size:10px; color:#8592a6; }
+  .tagBox .tagVal{ font-weight:700; color:#1a2233; flex:1 1 auto; }
+  .tagBox .tagQtyLabel{ font-size:10px; color:#8592a6; }
+  .tagBox .tagQtyVal{ font-weight:700; color:#1a2233; }
+
+  /* ---- 左側下段：完了チケット（工程ごとに千切って回収箱へ。手で破るので1枚あたり十分な高さを確保） ---- */
+  .ticketSheet{ margin:0 14px 14px; border:1.5px solid #222; display:flex; }
+  .ticketSideLabel{
+    flex:0 0 22px; background:#f7f9fc; border-right:1px dashed #8592a6; writing-mode:vertical-rl; text-orientation:upright;
+    font-size:10.5px; color:#5b6b84; display:flex; align-items:center; justify-content:center; padding:8px 0; line-height:1.9;
+  }
+  .ticketRows{ flex:1 1 auto; min-width:0; }
+  .ticketHeadRow{
+    display:flex; justify-content:space-between; padding:4px 12px; font-size:11px; font-weight:700;
+    color:#5b6b84; border-bottom:1px solid #222; background:#f7f9fc;
+  }
+  .ticketRow{
+    display:flex; align-items:center; gap:10px; padding:4px 12px; font-size:11.5px; border-bottom:1px dashed #c7cfdc;
+  }
+  .ticketRow:last-child{ border-bottom:none; }
+  .ticketRow .tNo{ flex:0 0 20px; font-weight:700; color:#8592a6; text-align:center; }
+  .ticketRow .tCode{ flex:0 0 66px; font-weight:700; }
+  .ticketRow .tDone{ flex:0 0 40px; color:#8592a6; font-size:10px; border:1px solid #dfe4ec; border-radius:4px; text-align:center; padding:2px 0; }
+  /* バーコードはスキャン精度を保つため、CSSで幅を無理に縮めず自然サイズのまま表示する（枠は余裕を持たせた固定幅） */
+  .ticketRow .tBarcode{ flex:0 0 270px; display:flex; align-items:center; overflow:visible; }
+  .ticketRow .tBarcode svg{ display:block; height:16px; width:auto; }
+  .ticketRow .tIdent{ flex:1 1 auto; text-align:left; font-size:10.5px; color:#5b6b84; line-height:1.3; }
+
+  .footNote{ font-size:12px; color:#a4adbc; text-align:center; margin-top:20px; line-height:1.7; }
+
+  @media print{
+    @page{ size:A3 landscape; margin:8mm; }
+    *{ -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; color-adjust:exact !important; }
+    body{ background:#fff; }
+    .topbar, .controlBar, .noteBar, .footNote{ display:none !important; }
+    .wrap{ max-width:none; padding:0; margin:0; }
+    .slipSheet{ box-shadow:none; border:1px solid #222; border-radius:0; margin:0; page-break-after:always; }
+    .slipSheet:last-child{ page-break-after:auto; }
+    table.procTable tr.procHeadRow th{ background:#f7f9fc !important; }
+    .infoCell .iLabel{ background:#f7f9fc !important; }
+    .ticketHeadRow{ background:#f7f9fc !important; }
+  }
+</style>
+<script src="_sakaeSupabaseConfig.js"></script>
+<script src="_sakaeSync.js"></script>
+</head>
+<body>
+
+  <div class="topbar">
+    <a class="backLink" id="backLink" href="作業票_モック.html">← 作業票へ</a>
+    <span class="brand"><span class="sakae">MIKOSHIYA SEIKI</span><span class="is">-iS</span></span>
+    <span class="sep">｜</span>
+    <span class="pageName" id="pageName">作業票印刷</span>
+  </div>
+
+  <div class="wrap">
+
+    <div class="noteBar">
+      現物の作業票印刷（A3横1枚＝左「作業票」＋完了チケット×12、右「作業票（控）」＋控えタグ×8）に合わせて作り直し中です。<br>
+      今は試作として、部品「001」だけを表示しています（表示専用・ここでは入力できません。項目を直したい場合は作業票側で編集してください）。<br>
+      工程は日程の若い順（同じ日程ならNC1→NC2→NC3のように数字順）にNO.1〜を振り直して並べています（12行に満たない分は空欄）。着手欄には作業票の工程日付を表示（現物と同じく完成欄は手書き用に空欄のまま）。予定工数はLA・MI・NC系の工程のみ表示します。<br>
+      「機械名・外注／人名」欄は現物にはありますが、作業票側にまだ入力箇所がないため今は空欄です（今後作業票側に追加予定）。<br>
+      完了チケットにはバーコード（社内No.-部品コード-工程コード）を印刷しています。工程完了時に千切って実績入力画面でスキャンすると、事務員の手入力なしで対象が自動選択されます。
+    </div>
+
+    <div class="controlBar" id="controlBar" style="display:none;">
+      <div class="ctitle" id="ctitle"></div>
+      <button type="button" class="printBtn" id="printBtn">🖨 印刷する（A3横）</button>
+    </div>
+
+    <div id="slipArea"></div>
+
+    <div class="emptyState" id="emptyState" style="display:none;"></div>
+
+    <div class="footNote">
+      元データ：作業票（社内No.ごとのlocalStorage）。作業票.xlsm「入力」シートと同等の内容を、部品ごとに1枚のシートとして印刷できるようにしたものです。
+    </div>
+
+  </div>
+
+<script src="_code39.js"></script>
+<script>
+(function(){
+  function esc(s){
+    return (s==null?'':s).toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  const params = new URLSearchParams(location.search);
+  const urlProductNo = (params.get('productNo') || '').trim();
+  const STORAGE_KEY_BASE = 'sakaeIS_buhinhyoMock_v1';
+  function storageKeyFor(productNo){ return STORAGE_KEY_BASE + (productNo ? ('_' + productNo) : ''); }
+
+  // ---- 「← 作業票へ」は社内No.（内部の紐付けキー名はproductNoのまま）を引き継がないと、作業票側で
+  // キーなしの共有キーに落ちて別の案件のデータが出てくる不具合があったため、必ずこのページの社内No.をURLに付けて戻す ----
+  const backLinkTopEl = document.getElementById('backLink');
+  if(backLinkTopEl && urlProductNo){
+    backLinkTopEl.href = '作業票_モック.html?productNo=' + encodeURIComponent(urlProductNo);
+  }
+
+  const CODE_COLORS = {
+    'NC1':'#2563eb','NC2':'#2563eb','NC3':'#2563eb','NC4':'#2563eb','NC5':'#2563eb','NC':'#2563eb','NCM':'#1d4ed8',
+    'LA':'#7c3aed','MI':'#0d9488','JG':'#ea580c','EW':'#be185d',
+    'OMI':'#16a34a','OGS':'#65a30d','GS':'#65a30d','GC':'#ca8a04',
+    'EM':'#0891b2','DR':'#9333ea','WEL':'#c2410c','3D':'#0ea5e9',
+    'FIN':'#dc2626','熱処理':'#92400e','ｶﾅｯｸ':'#4b5563','ﾆｭｰｶﾅｯｸ':'#6b7280','納品':'#e11d48',
+    'DE':'#94a3b8','SU':'#a1a1aa','支給':'#78716c','外注':'#8592a6','PN':'#71717a'
+  };
+  const DEFAULT_COLOR = '#173a68';
+
+  // ---- 一覧に無いコード（作業票で自由入力で追加した新しい工程）も、作業票・個別日程表と同じ色になるようにする ----
+  // 作業票・個別日程表と共通のlocalStorageキーを見に行くことで、どの画面で先に出てきても同じ色になる。
+  const CUSTOM_COLOR_KEY = 'sakaeIS_customCodeColors_v1';
+  function loadCustomColors(){
+    try{ const raw = localStorage.getItem(CUSTOM_COLOR_KEY); if(raw) return JSON.parse(raw); }catch(e){}
+    return {};
+  }
+  function saveCustomColors(map){ localStorage.setItem(CUSTOM_COLOR_KEY, JSON.stringify(map)); }
+  let customCodeColors = loadCustomColors();
+  function colorForCustomCode(code){
+    if(customCodeColors[code]) return customCodeColors[code];
+    const idx = Object.keys(customCodeColors).length;
+    const hue = Math.round((idx * 137.508) % 360);
+    const color = 'hsl('+hue+',65%,42%)';
+    customCodeColors[code] = color;
+    saveCustomColors(customCodeColors);
+    return color;
+  }
+  function colorOf(code){
+    if(CODE_COLORS[code]) return CODE_COLORS[code];
+    const c = code || '';
+    if(!c) return DEFAULT_COLOR;
+    // 「NC1ウラ」「NC4オモテ2」など、NCの後ろに自由な文字が続くコードも全てNCと同じ色にする（NCMは別コードなので除外）
+    if(c.indexOf('NC')===0 && c.indexOf('NCM')!==0) return CODE_COLORS['NC'];
+    return colorForCustomCode(c);
+  }
+  const WORK_HOUR_CODES = { 'LA':true, 'MI':true, 'NC1':true, 'NC2':true, 'NC3':true, 'NC4':true, 'NC5':true, 'NC':true };
+
+  // NC1・NC2ウラ・NC3ヨコなど、NCに続く数字部分だけを取り出す（NCMは対象外）。作業票のNC並び替えと同じロジック
+  function ncNum(code){
+    const m = /^NC(\d+)/.exec(code||'');
+    return m ? Number(m[1]) : null;
+  }
+  // ---- 工程はNO=1（一番下の行）が最初、NO=12（一番上の行）が最後になるよう、日程の若い順に並べ替える。
+  // 同じ日程（同じ午前/午後）ならNC1→NC2→NC3のように数字の若い順（作業票の並び替えと同じルール） ----
+  // DE・PNは日程だけの目印工程で実際の作業・完了チケットは無いため、作業票印刷（工程表・完了チケットとも）には出さない
+  const PRINT_HIDDEN_CODES = { 'DE':true, 'PN':true };
+  function sortedProcesses(part){
+    return (part.processes||[]).filter(p=>!PRINT_HIDDEN_CODES[p.code]).sort((a,b)=>{
+      const da = a.date || '';
+      const db = b.date || '';
+      if(!da && !db) return 0;
+      if(!da) return 1;
+      if(!db) return -1;
+      if(da !== db) return da < db ? -1 : 1;
+      const pa = a.ampm==='PM' ? 1 : 0;
+      const pb = b.ampm==='PM' ? 1 : 0;
+      if(pa !== pb) return pa - pb;
+      const na = ncNum(a.code), nb = ncNum(b.code);
+      if(na!=null && nb!=null) return na - nb;
+      return 0;
+    });
+  }
+
+  function fmtDate(s, ampm){
+    if(!s) return '';
+    const p = String(s).split('-').map(Number);
+    if(p.length!==3) return s;
+    return p[0]+'/'+p[1]+'/'+p[2] + (ampm==='PM' ? '午後' : (ampm==='AM' ? '午前' : ''));
+  }
+  // 工程表の小さいセル（着手など）は現物と同じく年（西暦）を出さず月/日だけにする
+  function fmtDateShort(s){
+    if(!s) return '';
+    const p = String(s).split('-').map(Number);
+    if(p.length!==3) return s;
+    return p[1]+'/'+p[2];
+  }
+
+  // ---- 西暦→和暦（簡易換算。2019/5/1〜が令和） ----
+  function toWareki(dateObj){
+    const y = dateObj.getFullYear();
+    const reiwaYear = y - 2018;
+    const yLabel = reiwaYear===1 ? '元' : String(reiwaYear);
+    return '令和'+yLabel+'年'+(dateObj.getMonth()+1)+'月'+dateObj.getDate()+'日';
+  }
+
+  // ---- 表示する「NO.」（紙の社内No.表示）は、実際の採番ルールに合わせる：
+  // 「5桁の製品品番＋3桁の部品品番（各部品ごとの枝番／subNo）＋2桁の任意コード」という桁構成で、
+  // urlProductNo（例：35481000-11）はASSY（枝番000）の値として渡ってくるので、真ん中の3桁だけを
+  // その部品自身のsubNoに置き換えて、部品ごとの本当の社内No.を再現する（例：subNo=001なら49171001-11）。
+  // ※これはあくまで「紙に印字する読みやすい表示」のためのもの。バーコード自体（ticketBarcodeSvg）は
+  // urlProductNoをそのまま使い、部品はsubNoを別セグメントとして持つ形式で組み立てるので、
+  // ここの表示とバーコードの中身が文字として一致しなくても、実績入力側の照合には影響しない ----
+  function partOrderNo(part){
+    const base = (urlProductNo || '').trim();
+    if(!part) return base;
+    const m = base.match(/^(\d+?)(\d{3})-(\d{2})$/);
+    if(m && part.subNo){
+      return m[1] + String(part.subNo).padStart(3,'0') + '-' + m[3];
+    }
+    // 採番ルールに当てはまらない品番（デモ品番など）は、品番の末尾にそのまま部品の社内No（枝番）を足して区別する
+    return base + (part.subNo ? ('-'+part.subNo) : '');
+  }
+
+  // ---- 現物では着手欄に日付が印字済み・完成欄は完了時に手書きで記入する空欄、という並びだったため、
+  // 作業票の工程日付をそのまま着手欄に表示する（完成欄は空欄のまま） ----
+
+  function load(){
+    if(!urlProductNo) return null;
+    try{
+      const raw = localStorage.getItem(storageKeyFor(urlProductNo));
+      if(raw) return JSON.parse(raw);
+    }catch(e){}
+    return null;
+  }
+
+  const state = load();
+  const pageNameEl = document.getElementById('pageName');
+  const emptyState = document.getElementById('emptyState');
+  const slipArea = document.getElementById('slipArea');
+  const controlBar = document.getElementById('controlBar');
+  const ctitle = document.getElementById('ctitle');
+
+  if(!state || !state.order){
+    emptyState.style.display = 'block';
+    emptyState.textContent = urlProductNo
+      ? '社内No.「'+urlProductNo+'」の作業票データが見つかりません。先に作業票側でデータを保存してください。'
+      : 'このページは作業票の「作業票を印刷 →」から開いてください（社内No.の指定が必要です）。';
+    return;
+  }
+
+  pageNameEl.textContent = '作業票印刷（社内No.：'+urlProductNo+'）';
+  const order = state.order;
+  const parts = state.parts || [];
+
+  // ---- 試作段階：部品「001」だけを対象にする（000のASSYや他の部品は今回は対象外） ----
+  const targetPart = parts.find(p => (p.subNo||'').trim() === '001');
+
+  if(!targetPart){
+    emptyState.style.display = 'block';
+    emptyState.textContent = 'この社内No.には枝番「001」の部品が見つかりません（作業票側で001を確認してください）。';
+    return;
+  }
+
+  // ---- 工程表（現物と同じ並び：日程の若い順に1,2,3...を振り直し、12行に満たない分は空欄。
+  //      行の見た目は12（もしくは実際の工程数）が上、1が下、その下に見出し行という現物の並びを再現している ----
+  const PROC_ROWS_MIN = 12;
+  // ---- 工程が13以上ある場合、12件ずつに区切って複数枚に分ける（現物の用紙は12行までしか無いため） ----
+  function processPages(part){
+    const list = sortedProcesses(part);
+    const pages = [];
+    for(let i=0;i<list.length;i+=PROC_ROWS_MIN){
+      pages.push(list.slice(i, i+PROC_ROWS_MIN));
+    }
+    if(pages.length===0) pages.push([]);
+    return pages;
+  }
+  // 現物と同じく「NO./工程」「着手日/完成予定」「実働H/見積H」は1セル内で上段（空欄・点線＝手書き用）・下段（印字済みの値）の2段構成
+  function procTableRowsHtml(list){
+    const rowCount = Math.max(PROC_ROWS_MIN, list.length);
+    let rowsHtml = '';
+    for(let i=rowCount-1;i>=0;i--){
+      const p = list[i];
+      const no = i+1;
+      if(p){
+        const hoursTxt = WORK_HOUR_CODES[p.code] ? (p.hours!=null && p.hours!=='' ? esc(p.hours)+'h' : '') : '';
+        const startDate = p.date ? fmtDateShort(p.date) : '';
+        rowsHtml += '<tr>'
+          + '<td class="machineCell"><div class="cellLine cellLineTop dotted"></div><div class="cellLine cellLineBottom">'+esc(p.machine||'')+'</div></td>'
+          + '<td class="noCodeCell"><div class="noCodeWrap"><span class="tinyNo">'+no+'</span><span class="codeSwatch" style="background:'+colorOf(p.code)+';"></span>'+esc(p.code)+'</div></td>'
+          + '<td class="startCell"><div class="cellLine cellLineTop dotted"></div><div class="cellLine cellLineBottom">'+esc(startDate)+'</div></td>'
+          + '<td class="finishCell"><div class="cellLine cellLineTop dotted"></div><div class="cellLine cellLineBottom"></div></td>'
+          + '<td class="hoursStackCell">'
+            + '<div class="cellLine cellLineTop dotted"></div>'
+            + '<div class="cellLine cellLineBottom">'+hoursTxt+'</div>'
+          + '</td>'
+          + '<td class="noteCell">'+esc(p.note||'')+'</td>'
+          + '</tr>';
+      }else{
+        rowsHtml += '<tr class="emptyRow">'
+          + '<td class="machineCell"><div class="cellLine cellLineTop dotted"></div><div class="cellLine cellLineBottom"></div></td>'
+          + '<td class="noCodeCell"><div class="noCodeWrap"><span class="tinyNo">'+no+'</span></div></td>'
+          + '<td class="startCell"><div class="cellLine cellLineTop dotted"></div><div class="cellLine cellLineBottom"></div></td>'
+          + '<td class="finishCell"><div class="cellLine cellLineTop dotted"></div><div class="cellLine cellLineBottom"></div></td>'
+          + '<td class="hoursStackCell"><div class="cellLine cellLineTop dotted"></div><div class="cellLine cellLineBottom"></div></td>'
+          + '<td class="noteCell"></td>'
+          + '</tr>';
+      }
+    }
+    rowsHtml += '<tr class="procHeadRow">'
+      + '<th>機械名<br>外注／人名</th><th>NO.<br>工程</th><th>着手</th><th>完成</th><th>実働H<br>見積H</th><th>備考</th>'
+      + '</tr>';
+    return rowsHtml;
+  }
+
+  // ---- 右側下段：控えタグ（社内No／品名／型式／数量。現物では8枚とも同じ内容） ----
+  function tagSheetHtml(part){
+    const tagHtml = '<div class="tagBox">'
+      + '<div class="tagRow"><span class="tagLabel">社内No.</span><span class="tagVal">'+esc(partOrderNo(part)||'―')+'</span></div>'
+      + '<div class="tagRow"><span class="tagLabel">品名</span><span class="tagVal">'+esc(part.name||'―')+'</span><span class="tagQtyLabel">数量</span></div>'
+      + '<div class="tagRow"><span class="tagLabel">型式</span><span class="tagVal">'+esc(order.model||'―')+'</span><span class="tagQtyVal">'+esc(part.qty||'―')+'</span></div>'
+      + '</div>';
+    return '<div class="tagSheet">'+ new Array(8).fill(tagHtml).join('') +'</div>';
+  }
+
+  // ---- Code39は日本語や「(」「)」などを表現できないため、「DG(外注-材料直送)」のような自由入力の工程名が
+  // そのままだとバーコードが壊れてしまう。バーコードには先頭の英数字部分だけ（例：DG）を使い、
+  // 実績入力側でも同じ削り方をして照合するので、見た目の工程名はそのまま・読み取りは正しくできるようにする ----
+  function barcodeSafeCode(code){
+    const m = String(code||'').match(/^[A-Za-z0-9]+/);
+    return m ? m[0] : '';
+  }
+
+  // ---- 完了チケットのバーコード：紙に印字してる「NO.」表示（partOrderNo）と必ず同じ文字列＋工程コードにする。
+  // 表示とバーコードの中身を一致させることで、現場の人が目で読んだ番号と、スキャンした番号が食い違う混乱を防ぐ。
+  // 実績入力_モック.htmlのfindByBarcodeKeyもこの採番ルールを理解して同じ部品を逆引きできるようにしてある ----
+  function ticketBarcodeSvg(part, p){
+    if(!p || typeof Code39 === 'undefined') return '';
+    const key = partOrderNo(part) + '-' + barcodeSafeCode(p.code);
+    return Code39.toSvg(key, { height:16, narrow:1.1, ratio:2.2, showText:false });
+  }
+
+  // ---- 左側下段：完了チケット（工程ごとに千切って回収箱へ。工程表と同じ並び順・同じNO12→1） ----
+  function ticketRowsHtml(list, part){
+    const rowCount = Math.max(PROC_ROWS_MIN, list.length);
+    let html = '';
+    for(let i=rowCount-1;i>=0;i--){
+      const p = list[i];
+      const no = i+1;
+      html += '<div class="ticketRow">'
+        + '<span class="tNo">'+no+'</span>'
+        + '<span class="tCode">'+(p?esc(p.code):'')+'</span>'
+        + '<span class="tDone">完了</span>'
+        + '<span class="tBarcode">'+ticketBarcodeSvg(part, p)+'</span>'
+        + '<span class="tIdent">'+esc(partOrderNo(part)||'―')+'<br>'+esc(part.name||'―')+'</span>'
+        + '</div>';
+    }
+    return html;
+  }
+  function ticketSheetHtml(part, list){
+    return '<div class="ticketSheet">'
+      + '<div class="ticketSideLabel">各工程の仕掛・完了時に千切って回収箱に入れてください</div>'
+      + '<div class="ticketRows">'
+      + '<div class="ticketHeadRow"><span>完了チケット</span><span>（コメント）</span></div>'
+      + ticketRowsHtml(list, part)
+      + '</div>'
+      + '</div>';
+  }
+
+  // ---- 略図＋工程表＋情報欄（左右パネルで共通の中身。側ラベルと下段だけが違う） ----
+  function slipMainHtml(part, list){
+    const issuedWareki = toWareki(new Date());
+    return '<div class="slipMain">'
+      + '<div class="slipTopRow">'
+      + '<div class="sketchBox"><span class="sketchLabel">略図</span></div>'
+      + '<div class="procTableWrap"><table class="procTable"><tbody>'+procTableRowsHtml(list)+'</tbody></table></div>'
+      + '</div>'
+      + '<div class="slipInfoGrid">'
+      + '<div class="infoRow">'
+      + '<div class="infoCell wide"><span class="iLabel">品名</span><span class="iVal">'+esc(part.name||'―')+'</span></div>'
+      + '<div class="infoCell"><span class="iLabel">品番</span><span class="iVal">'+esc(part.code||'―')+'</span></div>'
+      + '<div class="infoCell"><span class="iLabel">材質</span><span class="iVal">'+esc(part.material||'―')+'</span></div>'
+      + '<div class="infoCell"><span class="iLabel">仕上寸法</span><span class="iVal">'+esc(part.finishedSize||'―')+'</span></div>'
+      + '<div class="infoCell narrow"><span class="iLabel">個数</span><span class="iVal">'+esc(part.qty||'―')+'</span></div>'
+      + '<div class="infoCell narrow"><span class="iLabel">組付</span><span class="iVal">'+esc(order.assembly||'―')+'</span></div>'
+      + '</div>'
+      + '<div class="infoRow">'
+      + '<div class="infoCell wide"><span class="iLabel">型式</span><span class="iVal">'+esc(order.model||'―')+'</span></div>'
+      + '<div class="infoCell"><span class="iLabel">納期</span><span class="iVal">'+(order.dueDate?esc(fmtDate(order.dueDate)):'―')+'</span></div>'
+      + '<div class="infoCell"><span class="iLabel">受注日</span><span class="iVal">'+(order.orderDate?esc(fmtDate(order.orderDate)):'―')+'</span></div>'
+      + '<div class="infoCell"><span class="iLabel">客先</span><span class="iVal">'+esc(order.customer||'―')+'</span></div>'
+      + '<div class="infoCell narrow"><span class="iLabel">熱処理</span><span class="iVal">'+esc(part.heatTreatSpec||'―')+'</span></div>'
+      + '<div class="infoCell narrow"><span class="iLabel">表面処理</span><span class="iVal">'+esc(part.surfaceTreatSpec||'―')+'</span></div>'
+      + '</div>'
+      + '<div class="issueRow">発行　'+esc(issuedWareki)+'</div>'
+      + '</div>'
+      + '</div>';
+  }
+
+  // ---- A3横1枚＝左パネル（作業票＋完了チケット）＋右パネル（作業票（控）＋控えタグ） ----
+  // 工程が13以上あって複数ページになる時は、pageIdx/pageCountを渡して側ラベルに「2/3枚目」を出す
+  function slipSheetHtml(part, list, pageIdx, pageCount){
+    const no = esc(partOrderNo(part)||urlProductNo||'―');
+    const pageTag = pageCount>1 ? '<span class="slipSidePage">'+pageIdx+'/'+pageCount+'枚目</span>' : '';
+    const leftPanel = '<div class="slipPanel">'
+      + '<div class="slipSideLabel"><span class="slipSideTitle">作業票</span><span class="slipSideNo">NO. '+no+'</span>'+pageTag+'</div>'
+      + '<div class="slipBody">'+slipMainHtml(part, list)+ticketSheetHtml(part, list)+'</div>'
+      + '</div>';
+    const rightPanel = '<div class="slipPanel">'
+      + '<div class="slipSideLabel"><span class="slipSideTitle">作業票（控）</span><span class="slipSideNo">NO. '+no+'</span>'+pageTag+'</div>'
+      + '<div class="slipBody">'+slipMainHtml(part, list)+tagSheetHtml(part)+'</div>'
+      + '</div>';
+    return '<div class="slipSheet" data-partid="'+esc(part.id)+'">'+leftPanel+'<div class="divider"></div>'+rightPanel+'</div>';
+  }
+
+  function render(){
+    controlBar.style.display = 'flex';
+    const pages = processPages(targetPart);
+    ctitle.textContent = '部品「001」' + (targetPart.name ? '（'+targetPart.name+'）' : '') + ' を表示中（試作）'
+      + (pages.length>1 ? '　全'+pages.length+'枚' : '');
+    slipArea.innerHTML = pages.map((list,idx)=> slipSheetHtml(targetPart, list, idx+1, pages.length)).join('');
+    emptyState.style.display = 'none';
+  }
+
+  document.getElementById('printBtn').addEventListener('click', ()=> window.print());
+
+  render();
+})();
+</script>
+</body>
+</html>

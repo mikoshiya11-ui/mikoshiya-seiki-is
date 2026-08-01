@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ja" data-sakae-auth-page="login">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ログイン｜MIKOSHIYA SEIKI-iS</title>
+<style>
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh; background:#f4f6fa; color:#1a2233;
+    font-family:"Hiragino Sans","Yu Gothic",-apple-system,BlinkMacSystemFont,sans-serif;
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .card{
+    width:100%; max-width:360px; background:#fff; border-radius:14px; box-shadow:0 8px 28px rgba(20,35,70,.12);
+    padding:32px 28px;
+  }
+  .brand{ display:flex; align-items:baseline; justify-content:center; gap:2px; font-size:19px; font-weight:700; margin-bottom:6px; }
+  .brand .sakae{ color:#173a68; }
+  .brand .is{ color:#c9752f; }
+  .sub{ text-align:center; color:#8592a6; font-size:12.5px; margin-bottom:26px; }
+  label{ display:block; font-size:12.5px; font-weight:700; color:#5b6b84; margin-bottom:5px; }
+  .field{ margin-bottom:16px; }
+  input[type="email"], input[type="password"]{
+    width:100%; border:1.5px solid #dfe4ec; border-radius:8px; padding:10px 12px; font-size:14px;
+    font-family:inherit; outline:none;
+  }
+  input[type="email"]:focus, input[type="password"]:focus{ border-color:#173a68; }
+  button{
+    width:100%; border:none; background:#173a68; color:#fff; font-size:14px; font-weight:700;
+    padding:11px; border-radius:8px; cursor:pointer; font-family:inherit; margin-top:6px;
+  }
+  button:hover{ filter:brightness(1.1); }
+  button:disabled{ opacity:.6; cursor:default; }
+  .errMsg{
+    background:#fdecea; color:#c0392b; border:1px solid #f6cfc9; border-radius:8px; padding:9px 12px;
+    font-size:12.5px; margin-bottom:16px; display:none; line-height:1.5;
+  }
+  .errMsg.show{ display:block; }
+  .noteBar{
+    background:#fff7ec; border:1px solid #f3dcb8; color:#8a5a1a; font-size:11.5px; border-radius:8px;
+    padding:9px 12px; margin-top:20px; line-height:1.6;
+  }
+</style>
+</head>
+<body>
+
+  <div class="card">
+    <div class="brand"><span class="sakae">MIKOSHIYA</span><span class="is">&nbsp;SEIKI-iS</span></div>
+    <div class="sub">テスト共有版・ログイン</div>
+
+    <div class="errMsg" id="errMsg"></div>
+
+    <form id="loginForm">
+      <div class="field">
+        <label for="email">メールアドレス</label>
+        <input type="email" id="email" autocomplete="username" required>
+      </div>
+      <div class="field">
+        <label for="password">パスワード</label>
+        <input type="password" id="password" autocomplete="current-password" required>
+      </div>
+      <button type="submit" id="loginBtn">ログイン</button>
+    </form>
+
+    <div class="noteBar">
+      アカウントが無い場合は管理者（見越）に発行を依頼してください。自分でサインアップする画面はありません。
+    </div>
+  </div>
+
+<script src="_sakaeSupabaseConfig.js"></script>
+<script>
+  const errEl = document.getElementById('errMsg');
+  const formEl = document.getElementById('loginForm');
+  const btnEl = document.getElementById('loginBtn');
+
+  function showErr(msg){ errEl.textContent = msg; errEl.classList.add('show'); }
+
+  if(!window.SAKAE_SUPABASE_URL || !window.SAKAE_SUPABASE_ANON_KEY || window.SAKAE_SUPABASE_URL.indexOf('YOUR-PROJECT-REF')!==-1){
+    showErr('Supabaseの接続設定（_sakaeSupabaseConfig.js）がまだ設定されていません。管理者に確認してください。');
+    btnEl.disabled = true;
+  }
+
+  function nextUrl(){
+    const params = new URLSearchParams(location.search);
+    const next = params.get('next');
+    return next || '../MIKOSHIYA SEIKI-iS.html';
+  }
+
+  const scriptEl = document.createElement('script');
+  scriptEl.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js';
+  scriptEl.onload = ()=>{
+    if(btnEl.disabled) return; // 設定が無い場合はここで終わり
+    const sb = window.supabase.createClient(window.SAKAE_SUPABASE_URL, window.SAKAE_SUPABASE_ANON_KEY);
+
+    // 既にログイン済みならそのまま元のページへ
+    sb.auth.getSession().then(({ data:{ session } })=>{
+      if(session) location.href = nextUrl();
+    });
+
+    formEl.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      errEl.classList.remove('show');
+      btnEl.disabled = true;
+      btnEl.textContent = 'ログイン中…';
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if(error){
+        showErr('ログインできませんでした（メールアドレスかパスワードが違います）。');
+        btnEl.disabled = false;
+        btnEl.textContent = 'ログイン';
+        return;
+      }
+      location.href = nextUrl();
+    });
+  };
+  scriptEl.onerror = ()=>{ showErr('通信エラーです。インターネット接続を確認してください。'); };
+  document.head.appendChild(scriptEl);
+</script>
+</body>
+</html>

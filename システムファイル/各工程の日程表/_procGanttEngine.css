@@ -1,0 +1,226 @@
+/* ==== 工程日程表 共通エンジン CSS ====
+   各工程の日程表フォルダ内の全ファイルで共有。個別の見た目調整はここを直せば全ファイルに反映される。 */
+*{box-sizing:border-box;}
+body{
+  margin:0; background:#f4f6fa; color:#1a2233;
+  font-family:"Hiragino Sans","Yu Gothic",-apple-system,BlinkMacSystemFont,sans-serif;
+}
+.topbar{
+  background:#173a68; color:#fff; padding:12px 24px; display:flex; align-items:center; gap:10px;
+  font-size:15px; font-weight:700;
+}
+.topbar .brand{ display:flex; align-items:baseline; gap:2px; }
+.topbar .brand .sakae{ color:#fff; }
+.topbar .brand .is{ color:#f0a35c; }
+.topbar .sep{ color:#5b7aab; }
+.topbar .pageName{ font-weight:400; color:#cfe0f5; }
+.topbar .backLink{ margin-right:auto; color:#cfe0f5; text-decoration:none; font-size:13.5px; font-weight:400; }
+.topbar .backLink:hover{ text-decoration:underline; }
+
+.wrap{ max-width:1680px; margin:0 auto; padding:20px 20px 60px; }
+:root{ --day-w:30px; }
+
+.noteBar{
+  background:#fff7ec; border:1px solid #f3dcb8; color:#8a5a1a; font-size:12.5px; border-radius:10px;
+  padding:10px 16px; margin-bottom:16px; line-height:1.6;
+}
+
+.toolRow{ display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
+.monthToggle{ display:flex; gap:4px; background:#fff; border-radius:10px; padding:4px; box-shadow:0 2px 8px rgba(20,35,70,.06); }
+.monthToggle button{
+  border:none; background:transparent; color:#5b6b84; font-size:13.5px; font-weight:700; padding:7px 15px;
+  border-radius:7px; cursor:pointer; font-family:inherit;
+}
+.monthToggle button.active{ background:#173a68; color:#fff; }
+
+.rangeToggle{
+  display:flex; align-items:center; gap:6px; background:#fff; border-radius:10px; padding:6px 10px;
+  box-shadow:0 2px 8px rgba(20,35,70,.06); font-size:12px; font-weight:700; color:#5b6b84;
+}
+.rangeToggle input[type=date]{
+  border:1px solid #dfe4ec; border-radius:6px; padding:4px 6px; font-size:12px; font-family:inherit; color:#3a4a63;
+}
+.rangeToggle .rangeTilde{ color:#a4adbc; font-weight:400; }
+.rangeToggle .rangeResetBtn{
+  border:none; background:#f4f6fa; color:#5b6b84; font-size:11px; font-weight:700; padding:6px 10px;
+  border-radius:6px; cursor:pointer; font-family:inherit;
+}
+.rangeToggle .rangeResetBtn:hover{ background:#eef1f6; color:#173a68; }
+
+.legend{ display:flex; gap:10px; align-items:center; font-size:12px; color:#5b6b84; margin-bottom:10px; flex-wrap:wrap; }
+.legend .lgItem{ display:flex; align-items:center; gap:4px; }
+.legend .lgSwatch{ width:14px; height:9px; border-radius:3px; display:inline-block; }
+.legend .lgHint{ margin-left:auto; color:#a4adbc; }
+
+.unassignedCard{
+  background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(20,35,70,.06); padding:12px 16px; margin-bottom:16px;
+}
+.unassignedHead{ font-size:12.5px; font-weight:700; color:#5b6b84; margin-bottom:8px; }
+.unassignedList{ display:flex; flex-direction:column; gap:6px; max-height:220px; overflow-y:auto; }
+.unassignedItem{
+  display:flex; align-items:center; justify-content:space-between; gap:10px; padding:6px 10px; flex-wrap:wrap;
+  background:#f7f9fc; border-radius:8px; font-size:12px; color:#3a4a63;
+}
+.unassignedItem .uiInfo{ flex:1 1 260px; min-width:0; }
+.unassignedItem .uiForm{ display:flex; align-items:center; gap:6px; flex:0 0 auto; }
+.unassignedItem input[type=date]{
+  border:1px solid #dfe4ec; border-radius:6px; padding:4px 6px; font-size:11.5px; font-family:inherit;
+}
+.unassignedItem select{
+  border:1px solid #dfe4ec; border-radius:6px; padding:4px 6px; font-size:11.5px; font-family:inherit;
+}
+.unassignedItem .uiAssignBtn{
+  border:none; background:#173a68; color:#fff; font-size:11.5px; font-weight:700; padding:5px 12px;
+  border-radius:6px; cursor:pointer; font-family:inherit; flex:0 0 auto;
+}
+.unassignedItem .uiAssignBtn:hover{ filter:brightness(1.15); }
+.unassignedItem .uiDeleteBtn{ background:#c0392b; }
+.unassignedEmpty{ color:#a4adbc; font-size:12px; padding:6px 0; }
+
+.ganttCard{
+  background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(20,35,70,.06); overflow:hidden; margin-bottom:16px;
+}
+.ganttScroll{ overflow-x:auto; }
+.ganttInner{ min-width:max-content; position:relative; }
+
+.ganttMonthRow{ display:flex; border-bottom:1px solid #dfe4ec; background:#eef1f6; }
+.ganttHeaderRow{ display:flex; border-bottom:1.5px solid #222; background:#f7f9fc; }
+.ganttSideHead{ flex:0 0 auto; padding:0; font-size:11px; font-weight:700; color:#5b6b84; display:flex; align-items:stretch; border-right:1.5px solid #222; position:sticky; left:0; z-index:3; background:#f7f9fc; }
+.colHead{ flex:0 0 auto; padding:6px 4px; border-right:1px solid #dfe4ec; text-align:center; display:flex; align-items:center; justify-content:center; }
+.ganttMonthRow .ganttSideHead{ background:#eef1f6; }
+.monthCell{ font-size:11.5px; font-weight:700; color:#5b6b84; text-align:center; padding:4px 0; border-right:1.5px solid #8592a6; }
+.ganttDayCell{ width:var(--day-w); flex:0 0 var(--day-w); text-align:center; font-size:11.5px; color:#8592a6; padding:7px 0; }
+.ganttDayCell.sat{ color:#2563eb; }
+.ganttDayCell.sun{ color:#dc2626; }
+.ganttDayCell.today{ background:#173a68; color:#fff; font-weight:700; border-radius:3px; }
+
+.jobRow{ display:flex; border-bottom:1px solid #eef1f6; align-items:stretch; min-height:34px; }
+.jobRow:nth-child(even){ background:#fbfcfe; }
+.jobSideCell{
+  flex:0 0 auto; padding:0; border-right:1.5px solid #222; display:flex; align-items:stretch;
+  position:sticky; left:0; z-index:2; background:#fff;
+  box-shadow:2px 0 4px -2px rgba(20,35,70,.15);
+}
+.jobRow:nth-child(even) .jobSideCell{ background:#fbfcfe; }
+.colCell{ flex:0 0 auto; padding:3px 6px; border-right:1px dashed #eef1f6; display:flex; align-items:center; overflow:hidden; }
+.colCell .colVal{ font-size:11.5px; color:#3a4a63; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.colCell .colVal.muted{ color:#c7cfdc; }
+.colCell input{
+  width:100%; border:none; border-bottom:1px dashed #c7cfdc; background:transparent; font-family:inherit;
+  font-size:12px; color:#1a2233; padding:2px 2px 3px; min-width:0;
+}
+.colCell input:focus{ outline:none; border-bottom-color:#173a68; background:#f4f8ff; }
+
+/* ---- 工程完了期限の遅れバッジ（残品表_モック.htmlの期限超過／期限間近と同じ判定・配色） ---- */
+.colVal.due-soon{ color:#c9720d; font-weight:700; }
+.colVal.due-over{ color:#c0392b; font-weight:700; }
+.dueBadge{
+  display:inline-block; font-size:9.5px; font-weight:700; padding:1px 6px; border-radius:9px; margin-left:5px;
+  vertical-align:middle; white-space:nowrap;
+}
+.dueBadge.soon{ background:#fff3e0; color:#c9720d; }
+.dueBadge.over{ background:#fdeceb; color:#c0392b; }
+
+.summaryRow{ display:flex; gap:10px; align-items:center; font-size:12.5px; color:#5b6b84; margin:-4px 0 12px; flex-wrap:wrap; }
+.sumChip{ background:#fff; border-radius:20px; padding:6px 14px; box-shadow:0 2px 8px rgba(20,35,70,.06); }
+.sumChip b{ color:#173a68; font-size:14px; }
+.sumChip.warn b{ color:#c9720d; }
+.sumChip.danger b{ color:#c0392b; }
+
+.track{ position:relative; flex:0 0 auto; height:auto; align-self:stretch; user-select:none; }
+.track .bar{
+  position:absolute; top:5px; bottom:5px; border-radius:0; cursor:grab; box-sizing:border-box;
+  border:1px solid rgba(255,255,255,.65);
+  box-shadow:0 1px 3px rgba(20,35,70,.25); display:flex; align-items:center; overflow:hidden;
+}
+.track .bar:active{ cursor:grabbing; }
+.track .bar .barLabel{
+  font-size:10px; color:#fff; font-weight:700; padding:0 4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  pointer-events:none; text-shadow:0 1px 1px rgba(0,0,0,.25);
+}
+.track .bar .handle{ position:absolute; top:0; bottom:0; width:8px; cursor:ew-resize; z-index:1; }
+.track .bar .handle.left{ left:-2px; }
+.track .bar .handle.right{ right:-2px; }
+
+.emptyState{ padding:60px 20px; text-align:center; color:#a4adbc; font-size:13px; line-height:1.8; }
+
+.footNote{ font-size:12.5px; color:#a4adbc; text-align:center; margin-top:20px; line-height:1.7; }
+
+.labelPicker{
+  position:fixed; z-index:500; background:#fff; border-radius:10px; box-shadow:0 8px 28px rgba(20,35,70,.28);
+  padding:12px; width:260px; display:none; border:1px solid #e6eaf1;
+}
+.labelPicker.open{ display:block; }
+.labelPicker input{
+  width:100%; box-sizing:border-box; border:1.5px solid #dfe4ec; border-radius:7px; padding:8px 10px;
+  font-size:13px; font-family:inherit; margin-bottom:9px;
+}
+.labelPicker input:focus{ outline:none; border-color:#173a68; }
+.labelPicker .lpHint{ font-size:11px; color:#a4adbc; margin:-4px 0 9px; }
+.lpFoot{ display:flex; justify-content:flex-end; align-items:center; margin-top:2px; gap:8px; }
+.lpFoot button{
+  border:none; border-radius:7px; padding:8px 13px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit;
+}
+.lpApply{ background:#173a68; color:#fff; }
+.lpCancel{ background:#f4f6fa; color:#5b6b84; }
+
+/* ---- バーの右クリックメニュー（バー上に常時出る×は誤操作しやすかったため廃止し、右クリックで削除を選ぶ方式に変更） ---- */
+.barCtxMenu{
+  position:fixed; z-index:600; background:#fff; border:1px solid #e6eaf1; border-radius:8px;
+  box-shadow:0 8px 28px rgba(20,35,70,.28); padding:6px; display:none; min-width:150px;
+}
+.barCtxMenu.open{ display:block; }
+.barCtxMenu button{
+  display:block; width:100%; text-align:left; background:none; border:none; padding:8px 10px;
+  font-size:12.5px; font-family:inherit; color:#3a4a63; border-radius:6px; cursor:pointer;
+}
+.barCtxMenu button:hover{ background:#eef3fa; }
+.barCtxMenu button.danger{ color:#c0392b; }
+
+/* ---- 自由配置・自由リサイズのメモ（吹き出し）。日付や工程には紐付かず、ガント表の好きな位置に置ける付箋 ---- */
+.addMemoBtn{
+  border:none; background:#173a68; color:#fff; font-size:12.5px; font-weight:700; padding:8px 14px;
+  border-radius:8px; cursor:pointer; font-family:inherit;
+}
+.addMemoBtn:hover{ filter:brightness(1.15); }
+.memoNote{
+  position:absolute; z-index:50; background:#fff8d6; border:1px solid #e8d488; border-radius:9px 9px 9px 2px;
+  box-shadow:0 3px 10px rgba(20,35,70,.18); display:flex; flex-direction:column; min-width:90px; min-height:56px;
+}
+.memoNote::after{
+  content:''; position:absolute; left:10px; bottom:-8px; width:0; height:0;
+  border-left:8px solid transparent; border-top:8px solid #e8d488;
+}
+.memoNote::before{
+  content:''; position:absolute; left:11px; bottom:-6px; width:0; height:0;
+  border-left:7px solid transparent; border-top:7px solid #fff8d6; z-index:1;
+}
+.memoNoteHandle{
+  flex:0 0 auto; height:14px; cursor:move; display:flex; align-items:center; justify-content:center;
+  color:#c9b46a; font-size:9px; letter-spacing:2px; user-select:none; border-radius:9px 9px 0 0;
+}
+.memoNoteHandle:hover{ background:rgba(0,0,0,.05); }
+.memoNoteBody{
+  flex:1 1 auto; width:100%; border:none; background:transparent; resize:none; font-family:inherit;
+  font-size:12.5px; color:#5c4a1a; padding:0 8px 8px; box-sizing:border-box; line-height:1.5; outline:none;
+}
+.memoNoteResize{
+  position:absolute; right:1px; bottom:1px; width:14px; height:14px; cursor:nwse-resize;
+}
+.memoNoteResize::after{
+  content:''; position:absolute; right:3px; bottom:3px; width:7px; height:7px;
+  border-right:2px solid #d8c072; border-bottom:2px solid #d8c072;
+}
+
+/* ---- 直前の1操作だけ元に戻せるトースト通知（削除のやり直しに使う。ページを開いている間だけ有効） ---- */
+.undoToast{
+  position:fixed; left:50%; bottom:24px; transform:translateX(-50%); z-index:9999;
+  background:#1a2233; color:#fff; border-radius:10px; padding:11px 16px; font-size:13px;
+  align-items:center; gap:14px; box-shadow:0 8px 28px rgba(0,0,0,.28); display:none;
+}
+.undoToast.show{ display:flex; }
+.undoToast button{
+  border:none; background:#2c72c7; color:#fff; font-weight:700; font-size:12.5px; padding:6px 12px;
+  border-radius:6px; cursor:pointer; font-family:inherit; flex:0 0 auto;
+}
+.undoToast button:hover{ filter:brightness(1.1); }

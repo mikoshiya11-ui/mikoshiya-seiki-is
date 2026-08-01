@@ -1,0 +1,187 @@
+// ============================================================
+// MIKOSHIYA SEIKI-iS テスト共有レイヤー（_sakaeSync.js）
+//
+// 各ページの中身のロジックは一切変更せず、「localStorageへの保存先」を
+// ブラウザだけ → Supabase経由で全員に共有、に差し替えるための薄い仕組みです。
+//
+// やっていること：
+//   1) ログインしていない人は自動でログイン画面へ飛ばす
+//   2) ページを開いた時、Supabase上の最新データをlocalStorageに反映する
+//   3) このページで何かを保存する（localStorage.setItem）たびに、自動でSupabaseにも送る
+//   4) 他の人が保存したら、数秒以内にこのページにも反映する（リアルタイム購読）
+//
+// _sakaeSupabaseConfig.js で SAKAE_SYNC_ENABLED=false にすれば、
+// 今まで通りブラウザだけで動く従来モードに戻ります（Supabase未設定でもエラーになりません）。
+// ============================================================
+(function(){
+  'use strict';
+
+  if(typeof window.SAKAE_SYNC_ENABLED !== 'undefined' && !window.SAKAE_SYNC_ENABLED) return;
+  if(!window.SAKAE_SUPABASE_URL || !window.SAKAE_SUPABASE_ANON_KEY){
+    console.warn('[sakaeSync] _sakaeSupabaseConfig.js が読み込まれていない、または未設定のため、共有機能はオフのまま動作します。');
+    return;
+  }
+  // ログイン画面自身はこの仕組みでガードしない（無限リダイレクトになるため）
+  if(document.documentElement.dataset.sakaeAuthPage === 'login') return;
+
+  const KEY_PREFIX = 'sakaeIS_';
+  const LOGIN_PAGE = _sakaePathTo('ログイン.html');
+
+  // ---- ページ上のどこにあっても、システムファイル直下の共通ファイルを指せるようにする ----
+  function _sakaePathTo(filename){
+    // このスクリプト自身のsrc（システムファイル直下 or 各工程の日程表からの相対パス）から、
+    // 同じフォルダにあるはずのfilenameへの相対パスを組み立てる
+    const scripts = document.getElementsByTagName('script');
+    for(let i=0;i<scripts.length;i++){
+      const src = scripts[i].getAttribute('src') || '';
+      if(src.indexOf('_sakaeSync.js') !== -1){
+        return src.replace('_sakaeSync.js', filename);
+      }
+    }
+    return filename; // 見つからなければ同じフォルダにある想定でそのまま
+  }
+
+  // ---- 認証確認が終わるまで、画面を白いオーバーレイで隠す（未ログイン状態の画面がチラ見えするのを防ぐ） ----
+  function showGate(message){
+    let el = document.getElementById('sakaeAuthGate');
+    if(!el){
+      el = document.createElement('div');
+      el.id = 'sakaeAuthGate';
+      el.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#f4f6fa;display:flex;align-items:center;justify-content:center;font-family:"Hiragino Sans","Yu Gothic",-apple-system,BlinkMacSystemFont,sans-serif;color:#5b6b84;font-size:14px;';
+      el.textContent = message || '確認中…';
+      const attach = ()=> document.documentElement.appendChild(el);
+      if(document.body) attach(); else document.addEventListener('DOMContentLoaded', attach);
+    }
+  }
+  function hideGate(){
+    const el = document.getElementById('sakaeAuthGate');
+    if(el) el.remove();
+  }
+  showGate('ログイン状態を確認しています…');
+
+  // ---- Supabaseクライアント本体（CDNから動的読み込み） ----
+  function loadScript(src){
+    return new Promise((resolve, reject)=>{
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = resolve;
+      s.onerror = ()=> reject(new Error('failed to load '+src));
+      document.head.appendChild(s);
+    });
+  }
+
+  let sb = null;
+  let applyingRemoteUpdate = false; // 受信した更新をlocalStorageへ書き込んでいる最中は、push処理を発火させないためのフラグ
+  const pushTimers = {}; // キーごとのデバウンス用タイマー
+  const PUSH_DEBOUNCE_MS = 500;
+
+  function isSyncKey(key){
+    return typeof key === 'string' && key.indexOf(KEY_PREFIX) === 0;
+  }
+
+  // ---- localStorageへの書き込みを乗っ取り、対象キーならSupabaseにも送る ----
+  function installLocalStorageHook(){
+    const origSetItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function(key, value){
+      origSetItem.apply(this, arguments);
+      if(this === window.localStorage && isSyncKey(key) && !applyingRemoteUpdate){
+        schedulePush(key, value);
+      }
+    };
+  }
+
+  function schedulePush(key, value){
+    if(pushTimers[key]) clearTimeout(pushTimers[key]);
+    pushTimers[key] = setTimeout(()=> pushKey(key, value), PUSH_DEBOUNCE_MS);
+  }
+
+  async function pushKey(key, value){
+    delete pushTimers[key];
+    let parsed;
+    try{ parsed = JSON.parse(value); }catch(e){ parsed = value; } // 値がJSONでない場合も念のためそのまま送る
+    try{
+      const { data:{ user } } = await sb.auth.getUser();
+      await sb.from('kv_store').upsert({ key, value: parsed, updated_by: user ? user.id : null }, { onConflict:'key' });
+    }catch(e){
+      console.warn('[sakaeSync] push失敗:', key, e);
+    }
+  }
+
+  // ---- Supabase側の値をlocalStorageへ反映する（自分のpushを誘発しないようフラグを立てる） ----
+  function applyRemoteRow(row){
+    if(!row || !row.key) return;
+    applyingRemoteUpdate = true;
+    try{
+      const raw = JSON.stringify(row.value);
+      if(localStorage.getItem(row.key) === raw) return; // 変化が無ければ何もしない（余計な再描画を避ける）
+      localStorage.setItem(row.key, raw);
+      // 同じタブ内では標準のstorageイベントは発火しない仕様なので、手動で発火させて
+      // 各ページの「他タブでの変更をリアルタイムに反映する」既存の仕組みに乗せる
+      try{
+        window.dispatchEvent(new StorageEvent('storage', { key: row.key, newValue: raw, storageArea: localStorage }));
+      }catch(e){
+        // 古いブラウザ等でStorageEventのコンストラクタが使えない場合のフォールバック
+        const ev = document.createEvent('Event');
+        ev.initEvent('storage', false, false);
+        ev.key = row.key; ev.newValue = raw; ev.storageArea = localStorage;
+        window.dispatchEvent(ev);
+      }
+    }finally{
+      applyingRemoteUpdate = false;
+    }
+  }
+
+  // ---- 初回：Supabase側にある分は取り込み、Supabaseにまだ無い（＝このブラウザにしか無い）分は送る ----
+  async function initialSync(){
+    const { data, error } = await sb.from('kv_store').select('key, value');
+    if(error){ console.warn('[sakaeSync] 初回取得に失敗:', error); return; }
+    const remoteKeys = new Set();
+    (data||[]).forEach(row=>{ remoteKeys.add(row.key); applyRemoteRow(row); });
+
+    for(let i=0;i<localStorage.length;i++){
+      const key = localStorage.key(i);
+      if(isSyncKey(key) && !remoteKeys.has(key)){
+        pushKey(key, localStorage.getItem(key));
+      }
+    }
+  }
+
+  // ---- 以後は他の人の更新をリアルタイムに受け取る ----
+  function subscribeRealtime(){
+    sb.channel('kv_store_changes')
+      .on('postgres_changes', { event:'*', schema:'public', table:'kv_store' }, (payload)=>{
+        if(payload.eventType === 'DELETE') return; // このアプリでは基本的にキーの削除は使わない想定
+        applyRemoteRow(payload.new);
+      })
+      .subscribe();
+  }
+
+  async function boot(){
+    try{
+      await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js');
+      sb = window.supabase.createClient(window.SAKAE_SUPABASE_URL, window.SAKAE_SUPABASE_ANON_KEY);
+
+      const { data:{ session } } = await sb.auth.getSession();
+      if(!session){
+        location.href = LOGIN_PAGE + '?next=' + encodeURIComponent(location.pathname + location.search);
+        return;
+      }
+
+      installLocalStorageHook();
+      await initialSync();
+      subscribeRealtime();
+      hideGate();
+
+      // セッションが切れた（ログアウトされた）タイミングでもログイン画面へ
+      sb.auth.onAuthStateChange((event)=>{
+        if(event === 'SIGNED_OUT') location.href = LOGIN_PAGE;
+      });
+      window.sakaeSupabase = sb; // 他のページ（ログアウトボタンなど）から使えるように公開
+    }catch(e){
+      console.error('[sakaeSync] 起動に失敗しました。従来通りローカルのみで動作します。', e);
+      hideGate();
+    }
+  }
+
+  boot();
+})();

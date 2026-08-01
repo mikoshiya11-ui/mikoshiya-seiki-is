@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>工程別残品表｜MIKOSHIYA SEIKI-iS</title>
+<style>
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:#f4f6fa; color:#1a2233;
+    font-family:"Hiragino Sans","Yu Gothic",-apple-system,BlinkMacSystemFont,sans-serif;
+  }
+  .topbar{
+    background:#173a68; color:#fff; padding:12px 24px; display:flex; align-items:center; gap:10px;
+    font-size:15px; font-weight:700;
+  }
+  .topbar .brand{ display:flex; align-items:baseline; gap:2px; }
+  .topbar .brand .sakae{ color:#fff; }
+  .topbar .brand .is{ color:#f0a35c; }
+  .topbar .sep{ color:#5b7aab; }
+  .topbar .pageName{ font-weight:400; color:#cfe0f5; }
+  .topbar .backLink{ margin-right:auto; color:#cfe0f5; text-decoration:none; font-size:13.5px; font-weight:400; }
+  .topbar .backLink:hover{ text-decoration:underline; }
+
+  .wrap{ max-width:1520px; margin:0 auto; padding:20px 20px 60px; }
+
+  .noteBar{
+    background:#fff7ec; border:1px solid #f3dcb8; color:#8a5a1a; font-size:12.5px; border-radius:10px;
+    padding:10px 16px; margin-bottom:16px; line-height:1.6;
+  }
+
+  /* ---- 受注連絡書のカードは削除済みなのに、作業票データ（localStorage）だけ孤立して残っているものを見つけて消せるようにする欄 ---- */
+  .orphanBar{
+    background:#fdeceb; border:1px solid #f3c2bd; color:#a63f34; font-size:12.5px; border-radius:10px;
+    padding:10px 16px; margin-bottom:16px; line-height:1.6;
+  }
+  .orphanBar .orphanTitle{ font-weight:700; margin-bottom:6px; }
+  .orphanList{ display:flex; flex-wrap:wrap; gap:8px; }
+  .orphanChip{
+    display:inline-flex; align-items:center; gap:8px; background:#fff; border:1px solid #f3c2bd; border-radius:20px;
+    padding:5px 8px 5px 12px; font-size:12px; color:#7a2f27;
+  }
+  .orphanChip .delOrphanBtn{
+    border:none; background:#c0392b; color:#fff; font-size:11px; font-weight:700; padding:4px 9px; border-radius:14px;
+    cursor:pointer; font-family:inherit;
+  }
+  .orphanChip .delOrphanBtn:hover{ background:#a53023; }
+  .orphanBarAllBtn{
+    border:none; background:transparent; color:#a63f34; font-size:12px; font-weight:700; text-decoration:underline;
+    cursor:pointer; font-family:inherit; padding:0; margin-top:8px;
+  }
+
+  .toolRow{ display:flex; align-items:center; gap:10px; margin-bottom:14px; flex-wrap:wrap; }
+  .procToggle{ display:flex; gap:4px; background:#fff; border-radius:10px; padding:4px; box-shadow:0 2px 8px rgba(20,35,70,.06); }
+  .procToggle button{
+    border:none; background:transparent; color:#5b6b84; font-size:13.5px; font-weight:700; padding:8px 16px;
+    border-radius:7px; cursor:pointer; font-family:inherit;
+  }
+  .procToggle button.active{ background:#173a68; color:#fff; }
+  .procToggle button:disabled{ color:#c3cad8; cursor:default; }
+
+  .searchBox{
+    flex:1; min-width:200px; max-width:320px; border:1.5px solid #dfe4ec; border-radius:9px; padding:9px 13px;
+    font-size:13.5px; font-family:inherit; background:#fff;
+  }
+  .searchBox:focus{ outline:none; border-color:#173a68; }
+
+  .summaryRow{ display:flex; gap:10px; align-items:center; font-size:12.5px; color:#5b6b84; margin-left:auto; flex-wrap:wrap; }
+  .sumChip{ background:#fff; border-radius:20px; padding:6px 14px; box-shadow:0 2px 8px rgba(20,35,70,.06); }
+  .sumChip b{ color:#173a68; font-size:14px; }
+  .sumChip.warn b{ color:#c9720d; }
+  .sumChip.danger b{ color:#c0392b; }
+
+  .tableCard{
+    background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(20,35,70,.06); overflow:hidden;
+  }
+  .tableScroll{ overflow-x:auto; }
+  table{ border-collapse:collapse; width:100%; min-width:1180px; }
+  thead th{
+    position:sticky; top:0; background:#f7f9fc; border-bottom:1.5px solid #222; text-align:left;
+    font-size:12px; font-weight:700; color:#5b6b84; padding:10px 12px; white-space:nowrap; cursor:pointer; user-select:none;
+  }
+  thead th:hover{ color:#173a68; }
+  thead th.sorted::after{ content:' ▾'; color:#173a68; }
+  thead th.sorted.asc::after{ content:' ▴'; color:#173a68; }
+  tbody td{
+    padding:10px 12px; font-size:13px; border-bottom:1px solid #f0f2f7; white-space:nowrap; color:#2a3446;
+  }
+  tbody tr:hover{ background:#f7f9fc; }
+  tbody tr.checked{ opacity:.45; }
+  tbody tr.checked td{ text-decoration:line-through; }
+  td.nameCell, th.nameCell{ white-space:normal; min-width:220px; }
+  td.modelCell, th.modelCell{ white-space:normal; min-width:170px; }
+
+  .dueCell{ font-weight:700; }
+  .dueCell.soon{ color:#c9720d; }
+  .dueCell.over{ color:#c0392b; }
+  .badge{
+    display:inline-block; font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:10px; margin-left:6px;
+  }
+  .badge.soon{ background:#fff3e0; color:#c9720d; }
+  .badge.over{ background:#fdeceb; color:#c0392b; }
+
+  .procTag{
+    display:inline-block; font-size:11px; font-weight:700; color:#fff; background:#173a68; padding:2px 9px; border-radius:5px;
+  }
+
+  .checkCol{ width:34px; text-align:center; }
+  .checkCol input{ width:16px; height:16px; cursor:pointer; }
+
+  .emptyState{ padding:60px 20px; text-align:center; color:#a4adbc; font-size:13px; line-height:1.8; }
+
+  .footNote{ font-size:12.5px; color:#a4adbc; text-align:center; margin-top:20px; line-height:1.7; }
+
+  /* ---- デバッグ表示：どの部品がどの工程を「現在」として選ばれたか、判定の根拠を直接確認するための一時的な表 ---- */
+  .debugToggleBtn{
+    border:1px solid #dfe4ec; background:#fff; color:#5b6b84; font-size:12px; font-weight:700; padding:6px 12px;
+    border-radius:8px; cursor:pointer; font-family:inherit; margin-bottom:12px;
+  }
+  .debugPanel{
+    background:#101825; color:#cfe0f5; border-radius:10px; padding:12px 14px; margin-bottom:16px; font-size:11.5px;
+    overflow-x:auto;
+  }
+  .debugPanel table{ border-collapse:collapse; width:100%; min-width:900px; }
+  .debugPanel th{ text-align:left; padding:4px 8px; color:#8fb0dd; border-bottom:1px solid #2c3e57; white-space:nowrap; }
+  .debugPanel td{ padding:4px 8px; border-bottom:1px solid #1c2938; white-space:nowrap; }
+  .debugPanel td.procList{ white-space:normal; color:#9fb3cc; max-width:420px; }
+  .debugPanel td.chosen{ color:#7ee787; font-weight:700; }
+</style>
+<script src="_sakaeSupabaseConfig.js"></script>
+<script src="_sakaeSync.js"></script>
+</head>
+<body>
+
+  <div class="topbar">
+    <a class="backLink" href="../MIKOSHIYA SEIKI-iS.html" title="MIKOSHIYA SEIKI-iSトップへ">← トップへ</a>
+    <span class="brand"><span class="sakae">MIKOSHIYA SEIKI</span><span class="is">-iS</span></span>
+    <span class="sep">｜</span>
+    <span class="pageName" id="pageName">工程別残品表（モック：工程ごとの未完了部品一覧）</span>
+  </div>
+
+  <div class="wrap">
+
+    <div class="noteBar">
+      「残品表（マクロ有効）.xlsm」から工程でフィルタして各工程日程表（EW／LA／MI／NCなど）に貼り付けている運用を、1枚のページで工程切替できる形にしたものです。<br>
+      作業票に保存されている全受注・全部品から、それぞれ「今日時点で一番手前の工程（個別日程表のガントで“今日”に近い工程）」を自動で拾い出して、その工程のタブに1行だけ表示します（1部品が複数の工程・タブに重複して出ることはありません）。出図・支給・図面など実際には加工しない事務系の工程は、NC／MI／LAなど本当の加工工程が残っている間は選ばれず（日付が今日に近くても優先されません）、加工工程が1つも残っていない部品でだけ表示されます。実績入力で完了記録が付いた工程も除外されます。<br>
+      工程タブは特定の4つに絞らず、実際に部品が待っている工程コードごとに自動で出てきます（NC1〜NC5・NCMはまとめて「NC工程」として扱います）。
+    </div>
+
+    <div class="orphanBar" id="orphanBar" style="display:none;">
+      <div class="orphanTitle">⚠ 受注連絡書にカードが無いのに、作業票データだけ残っている品番があります</div>
+      <div class="orphanList" id="orphanList"></div>
+      <button type="button" class="orphanBarAllBtn" id="orphanAllBtn">まとめて削除</button>
+    </div>
+
+    <button type="button" class="debugToggleBtn" id="debugToggleBtn">🔍 部品ごとの判定を見る（デバッグ）</button>
+    <div class="debugPanel" id="debugPanel" style="display:none;"></div>
+
+    <div class="toolRow">
+      <div class="procToggle" id="procToggle"></div>
+      <input type="text" class="searchBox" id="searchBox" placeholder="社内№・客先・品名で検索">
+      <div class="summaryRow" id="summaryRow"></div>
+    </div>
+
+    <div class="tableCard">
+      <div class="tableScroll">
+        <table id="dataTable">
+          <thead>
+            <tr>
+              <th class="checkCol"></th>
+              <th data-key="orderNo">社内№</th>
+              <th data-key="customer">客先</th>
+              <th class="modelCell" data-key="model">型式名</th>
+              <th data-key="due">納期</th>
+              <th class="nameCell" data-key="name">品名</th>
+              <th data-key="qty">数量</th>
+              <th data-key="process">工程</th>
+              <th data-key="hours">工数</th>
+              <th data-key="procDue" class="sorted asc">工程完了期限</th>
+              <th data-key="prevProc">前工程完了予定</th>
+              <th data-key="nextProc">次工程</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+      <div class="emptyState" id="emptyState" style="display:none;"></div>
+    </div>
+
+    <div class="footNote">
+      元データ：作業票（品番ごとのlocalStorage）の全受注・全部品と、実績入力の完了記録（procIdで突き合わせ）。<br>
+      チェック欄は確認用の目印としてブラウザにのみ保存されます（実際の工程完了は実績入力で記録してください）。
+    </div>
+
+  </div>
+
+<script>
+(function(){
+  const params = new URLSearchParams(location.search);
+  const urlProductNo = (params.get('productNo') || '').trim();
+  // ---- このページは全受注を横断して見るため、チェック欄の保存キーは品番に紐づけない単一のキーにする ----
+  const CHECK_KEY = 'sakaeIS_zanpinMock_checks_v1';
+  const BUHIN_PREFIX = 'sakaeIS_buhinhyoMock_v1_';
+  const LOG_KEY = 'sakaeIS_jissekiLog_v1';
+  const RECORDS_KEY = 'sakaeIS_records_v1';
+  // タブは工程完了期限が近い順に、最大でこの件数まで表示する（数が多すぎてタブが埋まらないように上限を設ける）。
+  // 上限を超えた分は消してしまうと抜け漏れの原因になるので、まとめて「その他」タブに拾われるようにする
+  const MAX_TABS = 8;
+  const OTHER_KEY = '__OTHER__';
+
+  function esc(s){
+    return (s==null?'':s).toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // NC1・NC2ウラなど、NCに続く数字部分だけを取り出す（NCMは対象外）。作業票・作業票印刷の並び替えと同じロジック
+  function ncNum(code){
+    const m = /^NC(\d+)/.exec(code||'');
+    return m ? Number(m[1]) : null;
+  }
+  // 部品の工程を日程の若い順に並べる（作業票印刷のsortedProcessesと同じルール）
+  function sortedProcesses(processes){
+    return (processes||[]).slice().sort((a,b)=>{
+      const da = a.date || '', db = b.date || '';
+      if(!da && !db) return 0;
+      if(!da) return 1;
+      if(!db) return -1;
+      if(da !== db) return da < db ? -1 : 1;
+      const pa = a.ampm==='PM' ? 1 : 0, pb = b.ampm==='PM' ? 1 : 0;
+      if(pa !== pb) return pa - pb;
+      const na = ncNum(a.code), nb = ncNum(b.code);
+      if(na!=null && nb!=null) return na - nb;
+      return 0;
+    });
+  }
+  // 工程コード→タブのグループ分け。NC1〜NC5・NCMはまとめて「NC工程」1本にする以外は、
+  // 出てきた工程コードをそのままタブにする（EW／LA／MI／NC以外も対象外にはしない）
+  function groupOf(code){
+    if(!code) return null;
+    if(/^NC/.test(code)) return 'NC';
+    if(code==='OLA') return 'LA';
+    if(code==='OMI') return 'MI';
+    if(code==='OEW') return 'EW';
+    return code;
+  }
+  const WORK_HOUR_CODES = { 'LA':true, 'MI':true, 'NC1':true, 'NC2':true, 'NC3':true, 'NC4':true, 'NC5':true, 'NC':true };
+  // ---- 実際に機械・人手で加工する「物理工程」のコード一覧。DE（出図）・SU（支給）・PN（図面）・外注手配・客先承認・
+  // 検収待ちなど、日付は入っていても実際の加工とは違う事務・調整系の工程は、たとえ日付が今日に近くても現在工程には選ばない
+  // （これらは物理工程が1つも残っていない部品でのみ、最後の手段として拾う）----
+  const PHYSICAL_PROC_CODES = {
+    'LA':true,'MI':true,'JG':true,'EW':true,'OMI':true,'OGS':true,'GS':true,'GC':true,
+    'EM':true,'DR':true,'WEL':true,'3D':true,'FIN':true,'熱処理':true,'ｶﾅｯｸ':true,'ﾆｭｰｶﾅｯｸ':true
+  };
+  function isPhysicalCode(code){
+    return !!code && (/^NC/.test(code) || !!PHYSICAL_PROC_CODES[code]);
+  }
+
+  // ---- 実績入力で登録済みの工程id一覧（＝完了済みの工程）。実際に完了記録が付いた工程はここで除外する ----
+  function loadDoneProcIds(){
+    const set = new Set();
+    try{
+      const raw = localStorage.getItem(LOG_KEY);
+      const list = raw ? JSON.parse(raw) : [];
+      list.forEach(e=>{ if(e && e.procId) set.add(e.procId); });
+    }catch(e){}
+    return set;
+  }
+  function todayISO(){
+    const d = new Date();
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+
+  // 2つの日付文字列（YYYY-MM-DD）の日数差（絶対値）
+  function dayDistance(dateStr, todayStr){
+    const a = dateStr.split('-').map(Number), b = todayStr.split('-').map(Number);
+    const ta = Date.UTC(a[0], a[1]-1, a[2]), tb = Date.UTC(b[0], b[1]-1, b[2]);
+    return Math.abs(ta - tb) / 86400000;
+  }
+
+  // ---- 「現在の工程」の決め方：DE（出図）・SU（支給）・PN（図面）などは実績入力でスキャンする工程ではなく、
+  // 現物でも実際には完了記録が付かないため、「1つ前が完了していないと次に進めない」という前提を置くと、
+  // 一番最初の工程（SUやDEなど）でずっと止まったままになってしまう。また「今日以降で一番手前」を優先すると、
+  // 直近の工程が期限超過で止まっている時に、その次のまだ先の工程（FINなど）へ勝手に話が進んでしまう。
+  // そこで個別日程表のガントと同じく、部品ごとに「今日にいちばん近い日付の工程」（過去でも未来でもよい）を
+  // そのまま「現在」とする。実績入力で完了記録が付いている工程だけは日付に関係なく除外する。
+  // ただし、DE・SU・PNなど「物理的に加工していない事務・調整系」の工程は、たまたま日付が今日に近くても
+  // NC／MI／LAなどの本当の加工工程より優先させない：まず物理工程の中だけで一番近いものを探し、
+  // 物理工程が1つも残っていない部品でだけ、事務系工程も含めて探す ----
+  function currentProcIndex(sorted, doneIds, todayStr){
+    function findBest(requirePhysical){
+      let bestIdx = -1, bestDist = Infinity;
+      sorted.forEach((p, j)=>{
+        if(doneIds.has(p.id) || !p.date) return;
+        if(requirePhysical && !isPhysicalCode(p.code)) return;
+        const dist = dayDistance(p.date, todayStr);
+        if(dist < bestDist){ bestDist = dist; bestIdx = j; }
+      });
+      return bestIdx;
+    }
+    // 1. まず物理工程（NC／MI／LAなど）の中だけで、日付ありの未完了工程から今日に一番近いものを探す
+    let bestIdx = findBest(true);
+    if(bestIdx !== -1) return bestIdx;
+    // 2. 物理工程が1つも残っていない部品は、事務・調整系も含めて日付ありの未完了工程から探す
+    bestIdx = findBest(false);
+    if(bestIdx !== -1) return bestIdx;
+    // 3. 日付ありの未完了工程が1つも無い場合だけ、日付なしの工程の中から拾う
+    return sorted.findIndex(p=> !doneIds.has(p.id));
+  }
+
+  // ---- デバッグ用：全部品について、工程一覧・完了記録の有無・選ばれた「現在工程」とその理由を一覧化する。
+  // 「なぜこの工程が出てこないのか」を画面上でそのまま確認できるようにするための診断表 ----
+  function buildDebugInfo(){
+    const rows = [];
+    const doneIds = loadDoneProcIds();
+    const todayStr = todayISO();
+    for(let i=0;i<localStorage.length;i++){
+      const key = localStorage.key(i);
+      if(!key || key.indexOf(BUHIN_PREFIX)!==0) continue;
+      let bs;
+      try{ bs = JSON.parse(localStorage.getItem(key)); }catch(e){ continue; }
+      if(!bs || !bs.order) continue;
+      const order = bs.order;
+      (bs.parts||[]).forEach(part=>{
+        const sorted = sortedProcesses(part.processes);
+        const procSummary = sorted.map(p=>{
+          const done = doneIds.has(p.id) ? '済' : '未';
+          const dist = p.date ? dayDistance(p.date, todayStr) : null;
+          return p.code + '(' + (p.date||'日付なし') + (dist!=null ? '／'+dist+'日' : '') + '／' + done + ')';
+        }).join(' → ');
+        let chosenLabel = '―', reason = '';
+        if(!sorted.length){
+          reason = '工程が1件も登録されていない';
+        }else{
+          const idx = currentProcIndex(sorted, doneIds, todayStr);
+          if(idx === -1){
+            reason = '全工程が実績入力で完了記録済み';
+          }else{
+            const cur = sorted[idx];
+            const group = groupOf(cur.code);
+            if(!group){
+              reason = '「'+cur.code+'」は対象外の工程コード';
+            }else{
+              chosenLabel = cur.code + '（'+group+'工程タブ）';
+              reason = cur.date ? ('今日との差 '+dayDistance(cur.date, todayStr)+'日') : '日付なしの工程しか残っていない';
+            }
+          }
+        }
+        rows.push({
+          productNo: order.productNo||'', customer: order.customer||'', partName: part.name||'',
+          subNo: part.subNo||'', procSummary: procSummary || '(工程なし)', chosenLabel, reason
+        });
+      });
+    }
+    return rows;
+  }
+
+  const debugToggleBtn = document.getElementById('debugToggleBtn');
+  const debugPanel = document.getElementById('debugPanel');
+  let debugOpen = false;
+  function renderDebugPanel(){
+    if(!debugOpen) return;
+    const rows = buildDebugInfo();
+    let html = '<table><thead><tr><th>品番</th><th>枝番</th><th>部品名</th><th>客先</th><th>工程一覧（日付／今日との差／実績）</th><th>選ばれた現在工程</th><th>理由</th></tr></thead><tbody>';
+    rows.forEach(r=>{
+      html += '<tr><td>'+esc(r.productNo)+'</td><td>'+esc(r.subNo)+'</td><td>'+esc(r.partName)+'</td><td>'+esc(r.customer)+'</td>'
+        + '<td class="procList">'+esc(r.procSummary)+'</td><td class="chosen">'+esc(r.chosenLabel)+'</td><td>'+esc(r.reason)+'</td></tr>';
+    });
+    html += '</tbody></table>';
+    if(!rows.length) html = '作業票データが1件もありません。';
+    debugPanel.innerHTML = html;
+  }
+  debugToggleBtn.addEventListener('click', ()=>{
+    debugOpen = !debugOpen;
+    debugPanel.style.display = debugOpen ? 'block' : 'none';
+    debugToggleBtn.textContent = debugOpen ? '🔍 デバッグ表示を閉じる' : '🔍 部品ごとの判定を見る（デバッグ）';
+    renderDebugPanel();
+  });
+
+  // ---- 実際の社内No.採番規則：紙の社内No.（例：35481012-11）は「品番＋枝番」の単純な連結ではなく、
+  // [5桁の基準番号][部品ごとの3桁subNo]-[2桁の任意の枝番] という構成（基準番号と末尾の枝番は同じ受注内の全部品で共通）。
+  // 作業票印刷・実績入力と同じロジックで、部品ごとの正しい社内No.を組み立てる ----
+  function partOrderNo(order, part){
+    const base = ((order && (order.orderNo || order.productNo)) || '').trim();
+    if(!part) return base;
+    const m = base.match(/^(\d+?)(\d{3})-(\d{2})$/);
+    if(m && part.subNo){
+      return m[1] + String(part.subNo).padStart(3,'0') + '-' + m[3];
+    }
+    return base + (part.subNo ? ('-'+part.subNo) : '');
+  }
+
+  // ---- 全受注（作業票のlocalStorage）を横断して、部品ごとに「今の工程」を拾い、
+  // その工程コードのタブに1行だけ出す（特定の工程だけに絞らない。1部品は必ずどこか1つのタブにしか出ない） ----
+  function buildData(){
+    const data = {};
+    const doneIds = loadDoneProcIds();
+    const todayStr = todayISO();
+    for(let i=0;i<localStorage.length;i++){
+      const key = localStorage.key(i);
+      if(!key || key.indexOf(BUHIN_PREFIX)!==0) continue;
+      let bs;
+      try{ bs = JSON.parse(localStorage.getItem(key)); }catch(e){ continue; }
+      if(!bs || !bs.order) continue;
+      const order = bs.order;
+      (bs.parts||[]).forEach(part=>{
+        const sorted = sortedProcesses(part.processes);
+        if(!sorted.length) return;
+        const idx = currentProcIndex(sorted, doneIds, todayStr);
+        if(idx === -1) return; // 全工程が完了済み＝残品ではない
+        const cur = sorted[idx];
+        const group = groupOf(cur.code);
+        if(!group) return;
+        const prev = idx>0 ? sorted[idx-1] : null;
+        const next = idx<sorted.length-1 ? sorted[idx+1] : null;
+        const orderLabel = partOrderNo(order, part);
+        if(!data[group]) data[group] = [];
+        data[group].push({
+          orderNo: orderLabel, customer: order.customer||'', model: order.model||'',
+          due: order.dueDate||'', name: part.name||'', qty: (part.qty!=null && part.qty!=='') ? part.qty : '',
+          process: cur.code,
+          hours: (WORK_HOUR_CODES[cur.code] && cur.hours!=null && cur.hours!=='') ? Number(cur.hours) : null,
+          procDue: cur.date||'', prevProc: prev ? prev.code : '-', nextProc: next ? next.code : '-',
+          _rowKey: (order.productNo||'') + '_' + part.id + '_' + cur.id
+        });
+      });
+    }
+    return data;
+  }
+
+  // タブの並び順：工程を特定の何個かに固定せず、実際に部品が待っている工程コードだけを出す。
+  // 並び順は、そのタブの中で一番工程完了期限が近い（＝一番急ぎの）ものが左に来るようにする
+  // （0件の工程は抜け漏れの原因になるだけなので出さない）
+  // 工程完了期限が近い順に、グループ（工程コード）を並べる（絞り込みはしない。全件そのまま返す）
+  function sortedGroupKeys(data){
+    const keys = Object.keys(data);
+    function nearestDue(k){
+      let min = null;
+      (data[k]||[]).forEach(r=>{
+        const d = parseDate(r.procDue);
+        if(d && (!min || d < min)) min = d;
+      });
+      return min;
+    }
+    return keys.sort((a,b)=>{
+      const da = nearestDue(a), db = nearestDue(b);
+      if(!da && !db) return a.localeCompare(b);
+      if(!da) return 1;
+      if(!db) return -1;
+      if(da.getTime() !== db.getTime()) return da - db;
+      return a.localeCompare(b);
+    });
+  }
+  // タブとして実際に表示する一覧。期限が近い方からMAX_TABS-1件を個別タブにし、
+  // それより先（＝一番急ぎではない残り）は1本の「その他」タブにまとめる（＝どれかのタブには必ず出るので抜け漏れなし）
+  function orderedGroups(data){
+    const sorted = sortedGroupKeys(data);
+    if(sorted.length <= MAX_TABS) return sorted;
+    return sorted.slice(0, MAX_TABS - 1).concat([OTHER_KEY]);
+  }
+  // 指定したタブ（グループ）に表示する行一覧。「その他」タブの場合はMAX_TABSに収まりきらなかった
+  // 残り全グループの行をまとめて返す（＝件数が多くてもデータが消えることはない）
+  function rowsForGroup(data, group){
+    if(group === OTHER_KEY){
+      const sorted = sortedGroupKeys(data);
+      let rows = [];
+      sorted.slice(MAX_TABS - 1).forEach(g=>{ rows = rows.concat(data[g]||[]); });
+      return rows;
+    }
+    return data[group] || [];
+  }
+
+  // ---- 受注連絡書（カード一覧）に無いのに、作業票データだけ孤立して残っている品番を探す。
+  // 「カードは消したのに残品表にだけ古いデータが出続ける」を解消するための掃除機能 ----
+  function loadRecordProductNos(){
+    const set = new Set();
+    try{
+      const raw = localStorage.getItem(RECORDS_KEY);
+      const list = raw ? JSON.parse(raw) : [];
+      list.forEach(r=>{ if(r && r.productNo) set.add(String(r.productNo)); });
+    }catch(e){}
+    return set;
+  }
+  function findOrphanKeys(){
+    const knownProductNos = loadRecordProductNos();
+    const orphans = [];
+    for(let i=0;i<localStorage.length;i++){
+      const key = localStorage.key(i);
+      if(!key || key.indexOf(BUHIN_PREFIX)!==0) continue;
+      const productNo = key.slice(BUHIN_PREFIX.length);
+      if(!productNo || knownProductNos.has(productNo)) continue;
+      let label = productNo;
+      try{
+        const bs = JSON.parse(localStorage.getItem(key));
+        if(bs && bs.order){
+          const bits = [bs.order.customer, bs.order.model].filter(Boolean);
+          if(bits.length) label += '（'+bits.join('／')+'）';
+        }
+      }catch(e){}
+      orphans.push({ key, productNo, label });
+    }
+    return orphans;
+  }
+
+  const orphanBar = document.getElementById('orphanBar');
+  const orphanList = document.getElementById('orphanList');
+  function renderOrphanBar(){
+    const orphans = findOrphanKeys();
+    if(!orphans.length){ orphanBar.style.display = 'none'; return; }
+    orphanBar.style.display = 'block';
+    orphanList.innerHTML = orphans.map(o=>
+      '<span class="orphanChip">'+esc(o.label)+'<button type="button" class="delOrphanBtn" data-key="'+esc(o.key)+'">削除</button></span>'
+    ).join('');
+  }
+  orphanList.addEventListener('click', (e)=>{
+    const btn = e.target.closest('.delOrphanBtn');
+    if(!btn) return;
+    localStorage.removeItem(btn.dataset.key);
+    renderOrphanBar();
+    render();
+  });
+  document.getElementById('orphanAllBtn').addEventListener('click', ()=>{
+    findOrphanKeys().forEach(o=> localStorage.removeItem(o.key));
+    renderOrphanBar();
+    render();
+  });
+
+  let DATA = buildData();
+  let currentProc = orderedGroups(DATA)[0] || '';
+  let sortKey = 'procDue';
+  let sortAsc = true;
+  let searchTerm = '';
+
+  function loadChecks(){
+    try{
+      const raw = localStorage.getItem(CHECK_KEY);
+      if(raw) return JSON.parse(raw);
+    }catch(e){}
+    return {};
+  }
+  function saveChecks(){ localStorage.setItem(CHECK_KEY, JSON.stringify(checks)); }
+  let checks = loadChecks();
+
+  const TODAY = new Date(); TODAY.setHours(0,0,0,0);
+  function parseDate(s){
+    if(!s) return null;
+    const p = String(s).split('-').map(Number);
+    if(p.length!==3) return null;
+    return new Date(p[0], p[1]-1, p[2]);
+  }
+  function fmtDate(s){
+    const d = parseDate(s);
+    if(!d) return '-';
+    return (d.getMonth()+1)+'/'+d.getDate();
+  }
+  function daysUntil(s){
+    const d = parseDate(s);
+    if(!d) return null;
+    return Math.round((d - TODAY) / 86400000);
+  }
+
+  function rowKey(row){ return row._rowKey || (row.orderNo + '_' + row.name); }
+
+  const tableBody = document.getElementById('tableBody');
+  const emptyState = document.getElementById('emptyState');
+  const summaryRow = document.getElementById('summaryRow');
+  const table = document.getElementById('dataTable');
+  const procToggle = document.getElementById('procToggle');
+
+  // 工程コード→タブ表示名（NC1〜NC5・NCMは「NC工程」1本にまとめているのでそのまま、他はコード＋「工程」）
+  function procLabel(g){ return g === OTHER_KEY ? 'その他' : (g + '工程'); }
+
+  function renderTabs(){
+    const groups = orderedGroups(DATA);
+    procToggle.innerHTML = groups.map(g=>
+      '<button type="button" data-proc="'+esc(g)+'" class="'+(g===currentProc?'active':'')+'">'+esc(procLabel(g))+'</button>'
+    ).join('');
+  }
+
+  function getRows(){
+    let rows = rowsForGroup(DATA, currentProc).slice();
+    if(searchTerm){
+      const t = searchTerm.toLowerCase();
+      rows = rows.filter(r=>
+        (r.orderNo||'').toLowerCase().includes(t) ||
+        (r.customer||'').toLowerCase().includes(t) ||
+        (r.name||'').toLowerCase().includes(t) ||
+        (r.model||'').toLowerCase().includes(t)
+      );
+    }
+    rows.sort((a,b)=>{
+      let av = a[sortKey], bv = b[sortKey];
+      if(sortKey==='due' || sortKey==='procDue'){
+        av = parseDate(av) || new Date(0);
+        bv = parseDate(bv) || new Date(0);
+      }
+      if(typeof av === 'string') av = av.toLowerCase();
+      if(typeof bv === 'string') bv = bv.toLowerCase();
+      if(av < bv) return sortAsc ? -1 : 1;
+      if(av > bv) return sortAsc ? 1 : -1;
+      return 0;
+    });
+    return rows;
+  }
+
+  function render(){
+    renderOrphanBar();
+    renderDebugPanel();
+    DATA = buildData();
+    const visibleGroups = orderedGroups(DATA);
+    // 今見ているタブの工程が（完了などで）無くなった、またはタブの上限に押し出されて非表示になっていたら、先頭のタブに切り替える
+    if(visibleGroups.indexOf(currentProc)===-1){
+      currentProc = visibleGroups[0] || '';
+    }
+    renderTabs();
+
+    const rows = getRows();
+    const allRows = rowsForGroup(DATA, currentProc);
+
+    if(!currentProc){
+      table.style.display = 'none';
+      emptyState.style.display = 'block';
+      emptyState.textContent = '今、順番待ちしている部品はありません。';
+    }else if(allRows.length === 0){
+      table.style.display = 'none';
+      emptyState.style.display = 'block';
+      emptyState.textContent = (currentProc===OTHER_KEY ? 'その他の工程' : procLabel(currentProc)) + 'で今待っている部品はありません。';
+    }else{
+      table.style.display = '';
+      emptyState.style.display = 'none';
+    }
+
+    let html = '';
+    rows.forEach(row=>{
+      const key = rowKey(row);
+      const done = !!checks[key];
+      const dLeft = daysUntil(row.procDue);
+      let dueCls = '', badge = '';
+      if(dLeft !== null){
+        if(dLeft < 0){ dueCls = 'over'; badge = '<span class="badge over">期限超過</span>'; }
+        else if(dLeft <= 2){ dueCls = 'soon'; badge = '<span class="badge soon">あと'+dLeft+'日</span>'; }
+      }
+      html += '<tr class="'+(done?'checked':'')+'" data-key="'+esc(key)+'">';
+      html += '<td class="checkCol"><input type="checkbox" '+(done?'checked':'')+'></td>';
+      html += '<td>'+esc(row.orderNo)+'</td>';
+      html += '<td>'+esc(row.customer)+'</td>';
+      html += '<td class="modelCell">'+esc(row.model)+'</td>';
+      html += '<td>'+fmtDate(row.due)+'</td>';
+      html += '<td class="nameCell">'+esc(row.name)+'</td>';
+      html += '<td>'+esc(row.qty)+'</td>';
+      html += '<td><span class="procTag">'+esc(row.process)+'</span></td>';
+      html += '<td>'+(row.hours || row.hours===0 ? row.hours+'H' : '-')+'</td>';
+      html += '<td class="dueCell '+dueCls+'">'+fmtDate(row.procDue)+badge+'</td>';
+      html += '<td>'+esc(row.prevProc||'-')+'</td>';
+      html += '<td>'+esc(row.nextProc||'-')+'</td>';
+      html += '</tr>';
+    });
+    tableBody.innerHTML = html;
+
+    const overCount = allRows.filter(r=>{ const d=daysUntil(r.procDue); return d!==null && d<0; }).length;
+    const soonCount = allRows.filter(r=>{ const d=daysUntil(r.procDue); return d!==null && d>=0 && d<=2; }).length;
+    summaryRow.innerHTML =
+      '<span class="sumChip">全<b>'+allRows.length+'</b>件</span>' +
+      (soonCount ? '<span class="sumChip warn">期限間近 <b>'+soonCount+'</b>件</span>' : '') +
+      (overCount ? '<span class="sumChip danger">期限超過 <b>'+overCount+'</b>件</span>' : '');
+  }
+
+  procToggle.addEventListener('click', (e)=>{
+    const btn = e.target.closest('button[data-proc]');
+    if(!btn) return;
+    currentProc = btn.dataset.proc;
+    render();
+  });
+
+  document.getElementById('searchBox').addEventListener('input', (e)=>{
+    searchTerm = e.target.value.trim();
+    render();
+  });
+
+  table.querySelector('thead').addEventListener('click', (e)=>{
+    const th = e.target.closest('th[data-key]');
+    if(!th) return;
+    const key = th.dataset.key;
+    if(sortKey === key){ sortAsc = !sortAsc; }
+    else{ sortKey = key; sortAsc = true; }
+    table.querySelectorAll('th').forEach(h=> h.classList.remove('sorted','asc'));
+    th.classList.add('sorted');
+    if(sortAsc) th.classList.add('asc');
+    render();
+  });
+
+  tableBody.addEventListener('change', (e)=>{
+    const cb = e.target.closest('input[type=checkbox]');
+    if(!cb) return;
+    const tr = cb.closest('tr');
+    const key = tr.dataset.key;
+    checks[key] = cb.checked;
+    saveChecks();
+    tr.classList.toggle('checked', cb.checked);
+  });
+
+  // ---- 他ページ（個別日程表など）からのリンクで、工程タブ・検索語を指定して開けるようにする ----
+  // 例：残品表_モック.html?proc=NC&productNo=44541
+  const initProc = (params.get('proc') || '').toUpperCase();
+  if(initProc && DATA[initProc]){
+    currentProc = initProc;
+  }
+  const initProductNo = (params.get('productNo') || '').trim();
+  if(initProductNo){
+    searchTerm = initProductNo;
+    document.getElementById('searchBox').value = initProductNo;
+  }
+
+  // ---- 他タブでの作業票の更新・実績入力の登録をリアルタイムに反映する ----
+  window.addEventListener('storage', (e)=>{
+    if(!e.key) return;
+    if(e.key.indexOf(BUHIN_PREFIX)!==0 && e.key!==LOG_KEY && e.key!==RECORDS_KEY) return;
+    render();
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

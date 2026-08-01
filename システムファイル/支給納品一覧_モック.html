@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>支給・納品一覧｜MIKOSHIYA SEIKI-iS</title>
+<style>
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:#f4f6fa; color:#1a2233;
+    font-family:"Hiragino Sans","Yu Gothic",-apple-system,BlinkMacSystemFont,sans-serif;
+  }
+  .topbar{
+    background:#173a68; color:#fff; padding:12px 24px; display:flex; align-items:center; gap:10px;
+    font-size:15px; font-weight:700;
+  }
+  .topbar .brand{ display:flex; align-items:baseline; gap:2px; }
+  .topbar .brand .sakae{ color:#fff; }
+  .topbar .brand .is{ color:#f0a35c; }
+  .topbar .sep{ color:#5b7aab; }
+  .topbar .pageName{ font-weight:400; color:#cfe0f5; }
+  .topbar .backLink{ margin-right:auto; color:#cfe0f5; text-decoration:none; font-size:13.5px; font-weight:400; }
+  .topbar .backLink:hover{ text-decoration:underline; }
+
+  .wrap{ max-width:none; margin:0 auto; padding:20px 20px 60px; }
+
+  .noteBar{
+    background:#fff7ec; border:1px solid #f3dcb8; color:#8a5a1a; font-size:12.5px; border-radius:10px;
+    padding:10px 16px; margin-bottom:16px; line-height:1.6;
+  }
+
+  .toolRow{ display:flex; align-items:center; gap:10px; margin-bottom:14px; flex-wrap:wrap; }
+  .procToggle{ display:flex; gap:4px; background:#fff; border-radius:10px; padding:4px; box-shadow:0 2px 8px rgba(20,35,70,.06); }
+  .procToggle button{
+    border:none; background:transparent; color:#5b6b84; font-size:13.5px; font-weight:700; padding:8px 16px;
+    border-radius:7px; cursor:pointer; font-family:inherit;
+  }
+  .procToggle button.active{ background:#173a68; color:#fff; }
+
+  .searchBox{
+    flex:0 1 220px; min-width:160px; border:1.5px solid #dfe4ec; border-radius:9px; padding:9px 13px;
+    font-size:13.5px; font-family:inherit; background:#fff;
+  }
+  .searchBox:focus{ outline:none; border-color:#173a68; }
+
+  .rangeToggle{
+    display:flex; align-items:center; gap:6px; background:#fff; border-radius:10px; padding:7px 12px;
+    box-shadow:0 2px 8px rgba(20,35,70,.06); font-size:12.5px; color:#5b6b84; font-weight:700;
+  }
+  .rangeToggle input[type=date]{
+    border:1.5px solid #dfe4ec; border-radius:6px; padding:4px 6px; font-size:12.5px; font-family:inherit;
+  }
+  .rangeResetBtn{
+    border:1.5px solid #dfe4ec; background:#fff; color:#5b6b84; font-size:12px; font-weight:700; padding:5px 10px;
+    border-radius:7px; cursor:pointer; font-family:inherit;
+  }
+  .rangeResetBtn:hover{ border-color:#173a68; color:#173a68; }
+
+  .addRowBtn{
+    border:none; background:#173a68; color:#fff; font-size:13px; font-weight:700; padding:9px 16px;
+    border-radius:8px; cursor:pointer; font-family:inherit;
+  }
+  .addRowBtn:hover{ filter:brightness(1.1); }
+
+  .summaryRow{ display:flex; gap:10px; align-items:center; font-size:12.5px; color:#5b6b84; margin-left:auto; flex-wrap:wrap; }
+  .sumChip{ background:#fff; border-radius:20px; padding:6px 14px; box-shadow:0 2px 8px rgba(20,35,70,.06); }
+  .sumChip b{ color:#173a68; font-size:14px; }
+
+  .legendRow{ font-size:12px; color:#5b6b84; margin-bottom:10px; display:flex; gap:16px; flex-wrap:wrap; align-items:center; }
+  .legendDot{ display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:5px; vertical-align:-1px; }
+
+  .boardCard{
+    background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(20,35,70,.06); overflow:hidden;
+  }
+  .boardScroll{ overflow:auto; max-height:74vh; }
+  table.board{ border-collapse:separate; border-spacing:0; table-layout:fixed; }
+  .board th, .board td{ overflow:hidden; text-overflow:ellipsis; }
+  .board th.itemNameCol, .board td.itemNameCol,
+  .board th.statusCol, .board td.statusCol,
+  .board th.noteCol, .board td.noteCol,
+  .board td.dayCell{ overflow:visible; }
+
+  /* ---- 固定（左）列：社内No・客先など。theadの日付行と両方stickyにするコーナー部分はz-indexを高くする ---- */
+  .board th, .board td{
+    border-bottom:1px solid #eef1f6; border-right:1px solid #eef1f6; padding:6px 8px; font-size:12px;
+    white-space:nowrap; color:#2a3446; background:#fff;
+  }
+  .board thead th{
+    position:sticky; top:0; background:#f7f9fc; font-weight:700; color:#5b6b84; z-index:2; font-size:11px;
+  }
+  /* 日付の列（frozenではない側）は幅が狭いので、余白と文字サイズを詰めて省略されないようにする */
+  .board thead th:not(.frozen){ padding:3px 1px; font-size:10px; overflow:visible; text-overflow:clip; text-align:center; }
+  .board thead tr.dateRow th{ top:0; }
+  .board thead tr.dowRow th{ top:27px; font-weight:400; color:#a4adbc; }
+  .board .frozen{ position:sticky; background:#fff; z-index:1; }
+  .board thead .frozen{ z-index:4; background:#f7f9fc; }
+  .board .frozen.lastFrozen{ box-shadow:2px 0 4px rgba(20,35,70,.08); }
+
+  .board col.noCol{ width:46px; }
+  .board col.checkCol{ width:44px; }
+  .board col.orderNoCol{ width:112px; }
+  .board col.customerCol{ width:82px; }
+  .board col.modelCol{ width:100px; }
+  .board col.subModelCol{ width:58px; }
+  .board col.itemNameCol{ width:150px; }
+  .board col.statusCol{ width:150px; }
+  .board col.dueCol{ width:128px; }
+  .board col.noteCol{ width:150px; }
+  .board col.dayCol{ width:38px; }
+
+  th.noCol, td.noCol{ left:0; text-align:center; }
+  th.checkCol, td.checkCol{ left:46px; text-align:center; }
+  th.orderNoCol, td.orderNoCol{ left:90px; }
+  th.customerCol, td.customerCol{ left:202px; }
+  th.modelCol, td.modelCol{ left:284px; }
+  th.subModelCol, td.subModelCol{ left:384px; }
+  th.itemNameCol, td.itemNameCol{ left:442px; white-space:normal; }
+  th.statusCol, td.statusCol{ left:592px; white-space:normal; }
+  th.dueCol, td.dueCol{ left:742px; }
+  th.noteCol, td.noteCol{ left:870px; white-space:normal; }
+
+  .board .delBtn{
+    border:none; background:transparent; color:#c0392b; cursor:pointer; font-size:12px; padding:2px 4px;
+  }
+  .board .rowNo{ font-size:10.5px; color:#a4adbc; display:block; }
+
+  .cellInput{
+    width:100%; border:1.5px solid transparent; border-radius:5px; padding:4px 5px; font-size:12px;
+    font-family:inherit; background:transparent; color:#2a3446;
+  }
+  .cellInput:hover{ border-color:#e6eaf1; }
+  .cellInput:focus{ outline:none; border-color:#173a68; background:#fff; }
+  input.cellInput[type=date]{ font-size:11px; padding:3px 3px; }
+  /* 客先・品名・区分／状況は枠の幅を固定したまま2行まで折り返して表示（それ以上は隠す） */
+  textarea.cellInput{
+    resize:none; overflow-y:hidden; line-height:1.35; height:40px; box-sizing:border-box; white-space:pre-wrap; word-break:break-word;
+  }
+  .unknownChk{ display:flex; align-items:center; gap:3px; font-size:10px; color:#8592a6; margin-top:2px; }
+
+  /* 欠品チェック済みの行：opacityで薄くすると白っぽくなって「その他」の色と紛らわしいので、
+     グレーの半透明オーバーレイをかぶせる方式にする。ただし日程表のBOXは透けると読みにくいので対象外（元の色のまま） ----- */
+  tr.checkedRow td{ position:relative; }
+  tr.checkedRow td:not(.dayCell)::after{
+    content:''; position:absolute; inset:0; background:rgba(90,98,115,.5); pointer-events:none; z-index:5;
+  }
+  tr.checkedRow td.itemNameCol, tr.checkedRow td.statusCol{ text-decoration:line-through; }
+
+  td.dayCell{ position:relative; text-align:left; padding:3px; vertical-align:top; }
+  td.dayCell.weekend{ background:#fafbfd; }
+  td.dayCell.today{ background:rgba(250,204,21,.28); }
+  /* 月の境界を黒線でわかりやすく */
+  .board th.monthStart, .board td.monthStart{ border-left:2px solid #1a2233; }
+  /* 普段は枠より少し小さい四角の色だけ。品名などはホバーした時だけ出す（テーブルのマス目をまたいで
+     文字をはみ出させるのはブラウザ側で不安定なので、普段は小さく畳んでおいて事故が起きないようにする） ----- */
+  .dayBox{
+    display:inline-flex; align-items:center; justify-content:center; gap:2px;
+    width:20px; height:26px; overflow:hidden; position:relative; z-index:0; margin:2px 0 9px 6px;
+    border-radius:0; color:#fff; font-size:10.5px; font-weight:700; cursor:pointer; padding:0;
+    box-shadow:0 1px 2px rgba(20,35,70,.25); border:1.5px solid rgba(255,255,255,.6); white-space:nowrap;
+  }
+  .dayBox .dbText{ display:none; }
+  .dayBox .cBadge{ display:none; }
+  /* 通常時は固定列より奥（z-index:0）にして隠れるべき時は隠れるようにし、
+     ホバー中だけ大きく広がって品名を表示し、他のBOX・固定列より手前に持ってくる ----- */
+  .dayBox:hover{
+    width:max-content; height:auto; min-height:22px; overflow:visible; padding:2px 5px;
+    z-index:20; filter:brightness(1.08);
+  }
+  .dayBox:hover .dbText{ display:inline; }
+  .dayBox:hover .cBadge{ display:inline-flex; }
+  /* 予定日のマス目を指す吹き出しの口（箱の色に合わせて自動で色を変える）。
+     ホバーで箱が右へ伸びても、口の位置（箱の左端からの距離）は変えず、常に同じ日を指したままにする ----- */
+  .dayBox::after{
+    content:''; position:absolute; left:10px; bottom:-6px;
+    width:0; height:0; border-left:6px solid transparent; border-right:6px solid transparent;
+    border-top:6px solid var(--tailColor, #173a68);
+  }
+  .dayBox .cBadge{
+    background:rgba(255,255,255,.85); color:#173a68; border-radius:8px; font-size:9px; font-weight:800;
+    padding:0 4px; min-width:13px;
+  }
+  .dayAddHint{ width:100%; min-height:22px; border-radius:5px; border:1.5px dashed #e2e7ef; cursor:pointer; }
+  .dayAddHint:hover{ border-color:#173a68; }
+
+  .emptyState{ padding:60px 20px; text-align:center; color:#a4adbc; font-size:13px; line-height:1.8; }
+
+  .footNote{ font-size:12.5px; color:#a4adbc; text-align:center; margin-top:20px; line-height:1.7; }
+
+  /* ---- コメント（掲示板）ポップオーバー ---- */
+  .commentPicker{
+    position:fixed; z-index:500; background:#fff; border-radius:10px; box-shadow:0 8px 28px rgba(20,35,70,.28);
+    padding:14px; width:280px; display:none; border:1px solid #e6eaf1;
+  }
+  .commentPicker.open{ display:block; }
+  .commentPicker .cpTitle{ font-size:12px; font-weight:700; color:#5b6b84; margin-bottom:8px; }
+  .commentPicker .cpList{ max-height:200px; overflow-y:auto; margin-bottom:10px; display:flex; flex-direction:column; gap:8px; }
+  .commentPicker .cpItem{ background:#f7f9fc; border-radius:8px; padding:8px 10px; font-size:12px; position:relative; }
+  .commentPicker .cpItem .cpMeta{ font-size:10px; color:#a4adbc; margin-bottom:3px; display:flex; justify-content:space-between; gap:6px; }
+  .commentPicker .cpItem .cpText{ color:#2a3446; white-space:pre-wrap; word-break:break-word; }
+  .commentPicker .cpDel{ border:none; background:transparent; color:#c0392b; cursor:pointer; font-size:11px; }
+  .commentPicker .cpEmpty{ color:#a4adbc; font-size:12px; text-align:center; padding:10px 0; }
+  .commentPicker input[type=text], .commentPicker textarea{
+    width:100%; box-sizing:border-box; border:1.5px solid #dfe4ec; border-radius:7px; padding:7px 9px;
+    font-size:12.5px; font-family:inherit; margin-bottom:7px; resize:vertical;
+  }
+  .commentPicker input[type=text]:focus, .commentPicker textarea:focus{ outline:none; border-color:#173a68; }
+  .cpFoot{ display:flex; justify-content:space-between; gap:8px; }
+  .cpFoot button{
+    border:none; border-radius:7px; padding:7px 12px; font-size:12.5px; font-weight:700; cursor:pointer; font-family:inherit;
+  }
+  .cpAddBtn{ background:#173a68; color:#fff; }
+  .cpCloseBtn{ background:#f4f6fa; color:#5b6b84; }
+</style>
+<script src="_sakaeSupabaseConfig.js"></script>
+<script src="_sakaeSync.js"></script>
+</head>
+<body>
+
+  <div class="topbar">
+    <a class="backLink" href="../MIKOSHIYA SEIKI-iS.html" title="MIKOSHIYA SEIKI-iSトップへ">← トップへ</a>
+    <span class="brand"><span class="sakae">MIKOSHIYA SEIKI</span><span class="is">-iS</span></span>
+    <span class="sep">｜</span>
+    <span class="pageName">支給・納品一覧（備忘録・掲示板）</span>
+  </div>
+
+  <div class="wrap">
+
+    <div class="noteBar">
+      客先とのやり取りに関わる「支給」（客先から材料等を引き取る）と「納品」（客先へ納める）を、忘れないようにまとめておく一覧です。左の欄は自由に入力・編集でき、右は日付ごとの日程表になっていて、予定日にBOXが出ます。BOXをクリックするとその案件に関するコメント（掲示板のようにやり取りを書き足せます）を残せます。<br>
+      このページはまだ作業票など他の帳票とはリンクしていません（このページだけの独立した備忘録です）。
+    </div>
+
+    <div class="toolRow">
+      <div class="procToggle" id="procToggle">
+        <button type="button" data-kubun="all" class="active">すべて</button>
+        <button type="button" data-kubun="納品">納品</button>
+        <button type="button" data-kubun="支給">支給</button>
+      </div>
+      <input type="text" class="searchBox" id="searchBox" placeholder="社内No・客先・品名で検索">
+      <div class="rangeToggle" id="rangeToggle">
+        表示期間
+        <input type="date" id="viewStartInput">
+        〜
+        <input type="date" id="viewEndInput">
+        <button type="button" class="rangeResetBtn" id="rangeResetBtn">今日から30日</button>
+      </div>
+      <button type="button" class="addRowBtn" id="addRowBtn">＋ 項目を追加</button>
+      <div class="summaryRow" id="summaryRow"></div>
+    </div>
+
+    <div class="legendRow">
+      <span><span class="legendDot" style="background:#c0392b;"></span>納品・提出</span>
+      <span><span class="legendDot" style="background:#1a2233;"></span>支給・引取り</span>
+      <span><span class="legendDot" style="background:#0d9488;"></span>その他</span>
+      <span style="color:#a4adbc;">BOXをクリックでコメントを追加・閲覧</span>
+    </div>
+
+    <div class="boardCard">
+      <div class="boardScroll" id="boardScroll">
+        <table class="board" id="boardTable">
+          <colgroup id="colGroup"></colgroup>
+          <thead>
+            <tr class="dateRow" id="dateHeadRow"></tr>
+            <tr class="dowRow" id="dowHeadRow"></tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+      <div class="emptyState" id="emptyState" style="display:none;"></div>
+    </div>
+
+    <div class="footNote">
+      入力したデータはこのブラウザ内（sakaeIS_shikyuNouhinBoard_items_v1）にのみ保存されます。まだ他の帳票とは連携していません。
+    </div>
+
+  </div>
+
+  <div class="commentPicker" id="commentPicker">
+    <div class="cpTitle" id="cpTitle">コメント</div>
+    <div class="cpList" id="cpList"></div>
+    <input type="text" id="cpNameInput" placeholder="名前（任意）">
+    <textarea id="cpTextInput" rows="2" placeholder="コメントを入力"></textarea>
+    <div class="cpFoot">
+      <button type="button" class="cpAddBtn" id="cpAddBtn">書き込む</button>
+      <button type="button" class="cpCloseBtn" id="cpCloseBtn">閉じる</button>
+    </div>
+  </div>
+
+<script>
+(function(){
+  function esc(s){
+    return (s==null?'':s).toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  function uid(){ return Math.random().toString(36).slice(2,9); }
+
+  const ITEMS_KEY = 'sakaeIS_shikyuNouhinBoard_items_v1';
+  const VIEW_KEY = 'sakaeIS_shikyuNouhinBoard_view_v1';
+
+  function fmtDateForInput(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  function parseDateStr(s){
+    if(!s) return null;
+    const p = String(s).split('-').map(Number);
+    if(p.length!==3 || !p[0] || !p[1] || !p[2]) return null;
+    const d = new Date(p[0], p[1]-1, p[2]);
+    return isNaN(d) ? null : d;
+  }
+  const TODAY = new Date(); TODAY.setHours(0,0,0,0);
+
+  // ---- 初期データ：実際の客先ではなく、仮の客先名（A社・B社…）でバランスよく埋めたサンプル ----
+  function seedItems(){
+    function d(offset){ return fmtDateForInput(new Date(TODAY.getFullYear(),TODAY.getMonth(),TODAY.getDate()+offset)); }
+    return [
+      { id:uid(), checked:false, orderNo:'35481000-11', customer:'株式会社ミコシヤ', model:'MKS(-)', subModel:'', itemName:'ベントバー 8ヶ', status:'納品', dueDate:d(3), dueUnknown:false, note:'', comments:[] },
+      { id:uid(), checked:false, orderNo:'20260701-05', customer:'A社', model:'ABC-100', subModel:'№3', itemName:'下型入子 2ヶ', status:'支給材引き取り', dueDate:d(1), dueUnknown:false, note:'', comments:[] },
+      { id:uid(), checked:false, orderNo:'20260622-12', customer:'B社', model:'XZ-200', subModel:'', itemName:'上型本体', status:'製作完了・納品待ち', dueDate:d(0), dueUnknown:false, note:'', comments:[] },
+      { id:uid(), checked:true, orderNo:'20260615-08', customer:'C社', model:'PN-50', subModel:'№2', itemName:'検査治具一式', status:'客先へ提出', dueDate:d(7), dueUnknown:false, note:'', comments:[] },
+      { id:uid(), checked:false, orderNo:'20260710-02', customer:'D社', model:'GH-7', subModel:'', itemName:'材料支給待ち', status:'支給材未着', dueDate:d(2), dueUnknown:false, note:'', comments:[] },
+      { id:uid(), checked:false, orderNo:'20260625-19', customer:'E社', model:'KM-330', subModel:'№1', itemName:'入子3ヶ 溶接修正', status:'ADS持ち込み', dueDate:d(10), dueUnknown:false, note:'', comments:[] },
+      { id:uid(), checked:false, orderNo:'20260630-04', customer:'A社', model:'ABC-100', subModel:'№5', itemName:'ガイドピン一式', status:'納期未定・保留中', dueDate:'', dueUnknown:true, note:'', comments:[] },
+      { id:uid(), checked:true, orderNo:'20260618-11', customer:'F社', model:'QW-9', subModel:'', itemName:'完成品引き取り', status:'引き取り済み', dueDate:d(-2), dueUnknown:false, note:'', comments:[] },
+    ];
+  }
+
+  function loadItems(){
+    try{ const raw = localStorage.getItem(ITEMS_KEY); if(raw) return JSON.parse(raw); }catch(e){}
+    return seedItems();
+  }
+  function saveItems(){ localStorage.setItem(ITEMS_KEY, JSON.stringify(items)); }
+  let items = loadItems();
+
+  function defaultViewStart(){ return new Date(TODAY); }
+  function defaultViewEnd(){ const d = new Date(TODAY); d.setDate(d.getDate()+29); return d; }
+  function loadView(){
+    try{
+      const raw = localStorage.getItem(VIEW_KEY);
+      if(raw){
+        const v = JSON.parse(raw);
+        const s = parseDateStr(v.start), e = parseDateStr(v.end);
+        if(s && e && e>=s) return { start:s, end:e };
+      }
+    }catch(e){}
+    return { start: defaultViewStart(), end: defaultViewEnd() };
+  }
+  function saveView(){ localStorage.setItem(VIEW_KEY, JSON.stringify({ start: fmtDateForInput(viewStart), end: fmtDateForInput(viewEnd) })); }
+  let { start: viewStart, end: viewEnd } = loadView();
+
+  function dayList(){
+    const days = [];
+    let cur = new Date(viewStart);
+    while(cur <= viewEnd){ days.push(new Date(cur)); cur.setDate(cur.getDate()+1); }
+    return days;
+  }
+  function sameDay(a,b){ return a && b && a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate(); }
+
+  function statusColor(status){
+    const t = status || '';
+    if(t.indexOf('納品')!==-1 || t.indexOf('提出')!==-1) return '#c0392b';
+    if(t.indexOf('支給')!==-1 || t.indexOf('引取')!==-1 || t.indexOf('引き取り')!==-1) return '#1a2233';
+    return '#0d9488';
+  }
+
+  let currentKubun = 'all';
+  let searchTerm = '';
+
+  const tableBody = document.getElementById('tableBody');
+  const colGroup = document.getElementById('colGroup');
+  const dateHeadRow = document.getElementById('dateHeadRow');
+  const dowHeadRow = document.getElementById('dowHeadRow');
+  const emptyState = document.getElementById('emptyState');
+  const summaryRow = document.getElementById('summaryRow');
+  const boardTable = document.getElementById('boardTable');
+  const viewStartInput = document.getElementById('viewStartInput');
+  const viewEndInput = document.getElementById('viewEndInput');
+
+  const FIXED_COLS = [
+    { cls:'noCol', w:46 }, { cls:'checkCol', w:44 }, { cls:'orderNoCol', w:112 }, { cls:'customerCol', w:82 },
+    { cls:'modelCol', w:100 }, { cls:'subModelCol', w:58 }, { cls:'itemNameCol', w:150 }, { cls:'statusCol', w:150 },
+    { cls:'dueCol', w:128 }, { cls:'noteCol', w:150 }
+  ];
+  const DAY_COL_W = 38;
+  const FIXED_TOTAL_W = FIXED_COLS.reduce((s,c)=>s+c.w, 0);
+
+  function getRows(){
+    let rows = items.slice();
+    if(currentKubun !== 'all'){
+      rows = rows.filter(r => statusKubun(r.status) === currentKubun);
+    }
+    if(searchTerm){
+      const t = searchTerm.toLowerCase();
+      rows = rows.filter(r =>
+        (r.orderNo||'').toLowerCase().includes(t) ||
+        (r.customer||'').toLowerCase().includes(t) ||
+        (r.itemName||'').toLowerCase().includes(t) ||
+        (r.model||'').toLowerCase().includes(t)
+      );
+    }
+    rows.sort((a,b)=>{
+      const da = a.dueUnknown || !a.dueDate ? null : parseDateStr(a.dueDate);
+      const db = b.dueUnknown || !b.dueDate ? null : parseDateStr(b.dueDate);
+      if(!da && !db) return 0;
+      if(!da) return 1;
+      if(!db) return -1;
+      return da - db;
+    });
+    return rows;
+  }
+  function statusKubun(status){
+    const t = status || '';
+    if(t.indexOf('納品')!==-1 || t.indexOf('提出')!==-1) return '納品';
+    if(t.indexOf('支給')!==-1 || t.indexOf('引取')!==-1 || t.indexOf('引き取り')!==-1) return '支給';
+    return 'other';
+  }
+
+  function buildHeader(){
+    const days = dayList();
+    // <col>のwidthはCSSクラスだけだと内容によって伸び縮みすることがあるため、インラインでも幅を明示し、
+    // テーブル全体の幅も実際の列数ぶん正確に指定して、固定列（frozen）のズレ・裏側への回り込みを防ぐ
+    let colHtml = FIXED_COLS.map(c=>'<col class="'+c.cls+'" style="width:'+c.w+'px;">').join('')
+      + days.map(()=>'<col class="dayCol" style="width:'+DAY_COL_W+'px;">').join('');
+    colGroup.innerHTML = colHtml;
+    const totalW = FIXED_TOTAL_W + days.length*DAY_COL_W;
+    boardTable.style.width = totalW+'px';
+    boardTable.style.minWidth = totalW+'px';
+
+    let dateHtml = '<th class="frozen noCol">No.</th>'
+      + '<th class="frozen checkCol">欠品</th>'
+      + '<th class="frozen orderNoCol">社内№</th>'
+      + '<th class="frozen customerCol">客先</th>'
+      + '<th class="frozen modelCol">品番</th>'
+      + '<th class="frozen subModelCol">次型</th>'
+      + '<th class="frozen itemNameCol">品名</th>'
+      + '<th class="frozen statusCol">区分／状況</th>'
+      + '<th class="frozen dueCol lastFrozen">予定日</th>'
+      + '<th class="frozen noteCol" style="left:870px;">備考</th>';
+    let dowHtml = '<th class="frozen noCol" style="top:27px;"></th>'
+      + '<th class="frozen checkCol" style="top:27px;"></th>'
+      + '<th class="frozen orderNoCol" style="top:27px;"></th>'
+      + '<th class="frozen customerCol" style="top:27px;"></th>'
+      + '<th class="frozen modelCol" style="top:27px;"></th>'
+      + '<th class="frozen subModelCol" style="top:27px;"></th>'
+      + '<th class="frozen itemNameCol" style="top:27px;"></th>'
+      + '<th class="frozen statusCol" style="top:27px;"></th>'
+      + '<th class="frozen dueCol lastFrozen" style="top:27px;"></th>'
+      + '<th class="frozen noteCol" style="top:27px; left:870px;"></th>';
+
+    const dow = ['日','月','火','水','木','金','土'];
+    days.forEach((d,idx)=>{
+      const isToday = sameDay(d, TODAY);
+      const isWeekend = d.getDay()===0 || d.getDay()===6;
+      const isMonthStart = idx>0 && d.getDate()===1;
+      const thCls = (isToday?'today ':'')+(isMonthStart?'monthStart':'');
+      dateHtml += '<th class="'+thCls+'">'+(d.getMonth()+1)+'/'+d.getDate()+'</th>';
+      dowHtml += '<th class="'+thCls+'" style="'+(isWeekend?'color:'+(d.getDay()===0?'#c0392b':'#2563eb')+';':'')+'">'+dow[d.getDay()]+'</th>';
+    });
+    dateHeadRow.innerHTML = dateHtml;
+    dowHeadRow.innerHTML = dowHtml;
+  }
+
+  function rowHtml(item, no){
+    const days = dayList();
+    const due = (!item.dueUnknown && item.dueDate) ? parseDateStr(item.dueDate) : null;
+    let html = '<tr class="'+(item.checked?'checkedRow':'')+'" data-id="'+esc(item.id)+'">';
+    html += '<td class="frozen noCol"><button type="button" class="delBtn" data-role="delItem" title="削除">✕</button><span class="rowNo">'+no+'</span></td>';
+    html += '<td class="frozen checkCol"><input type="checkbox" data-role="fCheck" '+(item.checked?'checked':'')+'></td>';
+    html += '<td class="frozen orderNoCol"><input type="text" class="cellInput" data-field="orderNo" value="'+esc(item.orderNo)+'"></td>';
+    html += '<td class="frozen customerCol"><textarea rows="2" class="cellInput" data-field="customer">'+esc(item.customer)+'</textarea></td>';
+    html += '<td class="frozen modelCol"><input type="text" class="cellInput" data-field="model" value="'+esc(item.model)+'"></td>';
+    html += '<td class="frozen subModelCol"><input type="text" class="cellInput" data-field="subModel" value="'+esc(item.subModel)+'"></td>';
+    html += '<td class="frozen itemNameCol"><textarea rows="2" class="cellInput" data-field="itemName">'+esc(item.itemName)+'</textarea></td>';
+    html += '<td class="frozen statusCol"><textarea rows="2" class="cellInput" data-field="status" style="color:'+statusColor(item.status)+'; font-weight:700;" placeholder="例）納品、支給、14：00納品">'+esc(item.status)+'</textarea></td>';
+    html += '<td class="frozen dueCol lastFrozen">'
+      + '<input type="date" class="cellInput" data-field="dueDate" value="'+esc(item.dueDate||'')+'" '+(item.dueUnknown?'disabled':'')+'>'
+      + '<label class="unknownChk"><input type="checkbox" data-role="fUnknown" '+(item.dueUnknown?'checked':'')+'>未定</label>'
+      + '</td>';
+    html += '<td class="frozen noteCol" style="left:870px;"><input type="text" class="cellInput" data-field="note" value="'+esc(item.note)+'"></td>';
+
+    days.forEach((d,idx)=>{
+      const isToday = sameDay(d, TODAY);
+      const isWeekend = d.getDay()===0 || d.getDay()===6;
+      const isMonthStart = idx>0 && d.getDate()===1;
+      const cls = 'dayCell'+(isWeekend?' weekend':'')+(isToday?' today':'')+(isMonthStart?' monthStart':'');
+      if(due && sameDay(due, d)){
+        const color = statusColor(item.status);
+        const cCount = (item.comments||[]).length;
+        html += '<td class="'+cls+'">'
+          + '<div class="dayBox" data-role="openComment" style="background:'+color+'; --tailColor:'+color+';" title="クリックでコメントを見る・書き込む">'
+          + '<span class="dbText">'+esc(item.itemName||item.status||'')+'</span>'
+          + (cCount ? '<span class="cBadge">💬'+cCount+'</span>' : '')
+          + '</div></td>';
+      }else{
+        html += '<td class="'+cls+'"></td>';
+      }
+    });
+    html += '</tr>';
+    return html;
+  }
+
+  function render(){
+    buildHeader();
+    const rows = getRows();
+    if(items.length === 0){
+      boardTable.style.display = 'none';
+      emptyState.style.display = 'block';
+      emptyState.textContent = 'まだ項目がありません。「＋ 項目を追加」から入力してください。';
+    }else{
+      boardTable.style.display = '';
+      emptyState.style.display = 'none';
+    }
+    tableBody.innerHTML = rows.map((item, i)=> rowHtml(item, i+1)).join('');
+
+    const total = items.length;
+    const shown = rows.length;
+    const uncheckedCount = items.filter(r=>!r.checked).length;
+    summaryRow.innerHTML =
+      '<span class="sumChip">表示 <b>'+shown+'</b> / 全<b>'+total+'</b>件</span>'
+      + '<span class="sumChip">未チェック <b>'+uncheckedCount+'</b>件</span>';
+  }
+
+  document.getElementById('procToggle').addEventListener('click', (e)=>{
+    const btn = e.target.closest('button[data-kubun]');
+    if(!btn) return;
+    currentKubun = btn.dataset.kubun;
+    document.querySelectorAll('#procToggle button').forEach(b=> b.classList.toggle('active', b===btn));
+    render();
+  });
+
+  document.getElementById('searchBox').addEventListener('input', (e)=>{
+    searchTerm = e.target.value.trim();
+    render();
+  });
+
+  function updateRangeInputsUI(){
+    viewStartInput.value = fmtDateForInput(viewStart);
+    viewEndInput.value = fmtDateForInput(viewEnd);
+  }
+  function applyViewChange(newStart, newEnd){
+    if(!newStart || !newEnd || newEnd < newStart){ updateRangeInputsUI(); return; }
+    viewStart = newStart; viewEnd = newEnd;
+    saveView();
+    updateRangeInputsUI();
+    render();
+  }
+  viewStartInput.addEventListener('change', ()=> applyViewChange(parseDateStr(viewStartInput.value), viewEnd));
+  viewEndInput.addEventListener('change', ()=> applyViewChange(viewStart, parseDateStr(viewEndInput.value)));
+  document.getElementById('rangeResetBtn').addEventListener('click', ()=>{
+    viewStart = defaultViewStart();
+    viewEnd = defaultViewEnd();
+    saveView();
+    updateRangeInputsUI();
+    render();
+  });
+  updateRangeInputsUI();
+
+  document.getElementById('addRowBtn').addEventListener('click', ()=>{
+    items.unshift({ id:uid(), checked:false, orderNo:'', customer:'', model:'', subModel:'', itemName:'', status:'', dueDate:'', dueUnknown:false, note:'', comments:[] });
+    saveItems();
+    render();
+  });
+
+  tableBody.addEventListener('click', (e)=>{
+    const delBtn = e.target.closest('[data-role="delItem"]');
+    if(delBtn){
+      const tr = delBtn.closest('tr');
+      const id = tr.dataset.id;
+      const item = items.find(x=>x.id===id);
+      if(!window.confirm('この項目を削除しますか？'+(item&&(item.orderNo||item.itemName)?'（'+(item.orderNo||item.itemName)+'）':''))) return;
+      items = items.filter(x=>x.id!==id);
+      saveItems();
+      render();
+      return;
+    }
+    const box = e.target.closest('[data-role="openComment"]');
+    if(box){
+      const tr = box.closest('tr');
+      const id = tr.dataset.id;
+      openCommentPicker(id, box.getBoundingClientRect());
+      return;
+    }
+  });
+
+  tableBody.addEventListener('change', (e)=>{
+    const tr = e.target.closest('tr[data-id]');
+    if(!tr) return;
+    const item = items.find(x=>x.id===tr.dataset.id);
+    if(!item) return;
+    if(e.target.dataset.role === 'fCheck'){
+      item.checked = e.target.checked;
+      saveItems();
+      render();
+      return;
+    }
+    if(e.target.dataset.role === 'fUnknown'){
+      item.dueUnknown = e.target.checked;
+      saveItems();
+      render();
+      return;
+    }
+    if(e.target.dataset.field === 'dueDate'){
+      item.dueDate = e.target.value;
+      saveItems();
+      render();
+      return;
+    }
+  });
+  tableBody.addEventListener('input', (e)=>{
+    const field = e.target.dataset.field;
+    if(!field || field==='dueDate') return;
+    const tr = e.target.closest('tr[data-id]');
+    if(!tr) return;
+    const item = items.find(x=>x.id===tr.dataset.id);
+    if(!item) return;
+    item[field] = e.target.value;
+    saveItems();
+    if(field === 'status'){
+      e.target.style.color = statusColor(item.status);
+    }
+  });
+
+  // ---- コメント（掲示板）ポップオーバー ----
+  const commentPicker = document.getElementById('commentPicker');
+  const cpTitle = document.getElementById('cpTitle');
+  const cpList = document.getElementById('cpList');
+  const cpNameInput = document.getElementById('cpNameInput');
+  const cpTextInput = document.getElementById('cpTextInput');
+  let cpItemId = null;
+
+  function fmtAt(iso){
+    const d = new Date(iso);
+    if(isNaN(d)) return '';
+    return (d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  }
+  function renderCpList(){
+    const item = items.find(x=>x.id===cpItemId);
+    if(!item){ cpList.innerHTML = ''; return; }
+    const comments = item.comments||[];
+    if(!comments.length){
+      cpList.innerHTML = '<div class="cpEmpty">まだコメントはありません。</div>';
+      return;
+    }
+    cpList.innerHTML = comments.slice().reverse().map(c=>
+      '<div class="cpItem" data-cid="'+esc(c.id)+'">'
+      + '<div class="cpMeta"><span>'+esc(c.name||'名無し')+'　'+esc(fmtAt(c.at))+'</span><button type="button" class="cpDel" data-role="delComment" data-cid="'+esc(c.id)+'">削除</button></div>'
+      + '<div class="cpText">'+esc(c.text)+'</div>'
+      + '</div>'
+    ).join('');
+  }
+  function openCommentPicker(itemId, anchorRect){
+    cpItemId = itemId;
+    const item = items.find(x=>x.id===itemId);
+    cpTitle.textContent = 'コメント　'+(item ? (item.orderNo||item.itemName||'') : '');
+    cpTextInput.value = '';
+    renderCpList();
+    const pickerW = 280;
+    let left = anchorRect.left;
+    let top = anchorRect.bottom + 6;
+    if(left + pickerW > window.innerWidth - 10) left = window.innerWidth - pickerW - 10;
+    if(left < 10) left = 10;
+    if(top + 340 > window.innerHeight){ top = Math.max(10, anchorRect.top - 346); }
+    commentPicker.style.left = left+'px';
+    commentPicker.style.top = top+'px';
+    commentPicker.classList.add('open');
+    cpTextInput.focus();
+  }
+  function closeCommentPicker(){
+    commentPicker.classList.remove('open');
+    cpItemId = null;
+  }
+  document.getElementById('cpAddBtn').addEventListener('click', ()=>{
+    const item = items.find(x=>x.id===cpItemId);
+    if(!item) return;
+    const text = cpTextInput.value.trim();
+    if(!text) return;
+    item.comments = item.comments || [];
+    item.comments.push({ id:uid(), name: cpNameInput.value.trim(), text, at: new Date().toISOString() });
+    saveItems();
+    cpTextInput.value = '';
+    renderCpList();
+    render();
+  });
+  cpTextInput.addEventListener('keydown', (e)=>{
+    if(e.key==='Enter' && (e.metaKey || e.ctrlKey)){ e.preventDefault(); document.getElementById('cpAddBtn').click(); }
+  });
+  cpList.addEventListener('click', (e)=>{
+    const btn = e.target.closest('[data-role="delComment"]');
+    if(!btn) return;
+    const item = items.find(x=>x.id===cpItemId);
+    if(!item) return;
+    if(!window.confirm('このコメントを削除しますか？')) return;
+    item.comments = (item.comments||[]).filter(c=>c.id!==btn.dataset.cid);
+    saveItems();
+    renderCpList();
+    render();
+  });
+  document.getElementById('cpCloseBtn').addEventListener('click', closeCommentPicker);
+  document.addEventListener('mousedown', (e)=>{
+    if(!commentPicker.classList.contains('open')) return;
+    if(commentPicker.contains(e.target)) return;
+    if(e.target.closest('[data-role="openComment"]')) return;
+    closeCommentPicker();
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
