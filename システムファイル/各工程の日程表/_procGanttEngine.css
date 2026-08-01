@@ -141,6 +141,7 @@ body{
 .track .bar .handle{ position:absolute; top:0; bottom:0; width:8px; cursor:ew-resize; z-index:1; }
 .track .bar .handle.left{ left:-2px; }
 .track .bar .handle.right{ right:-2px; }
+.track .bar.light .barLabel{ color:#243044; text-shadow:none; }
 
 .emptyState{ padding:60px 20px; text-align:center; color:#a4adbc; font-size:13px; line-height:1.8; }
 
@@ -148,7 +149,7 @@ body{
 
 .labelPicker{
   position:fixed; z-index:500; background:#fff; border-radius:10px; box-shadow:0 8px 28px rgba(20,35,70,.28);
-  padding:12px; width:260px; display:none; border:1px solid #e6eaf1;
+  padding:12px; width:300px; display:none; border:1px solid #e6eaf1;
 }
 .labelPicker.open{ display:block; }
 .labelPicker input{
@@ -156,12 +157,26 @@ body{
   font-size:13px; font-family:inherit; margin-bottom:9px;
 }
 .labelPicker input:focus{ outline:none; border-color:#173a68; }
+.labelPicker textarea{
+  width:100%; box-sizing:border-box; border:1.5px solid #dfe4ec; border-radius:7px; padding:8px 10px;
+  font-size:13px; font-family:inherit; margin-bottom:9px; resize:vertical; min-height:60px;
+}
+.labelPicker textarea:focus{ outline:none; border-color:#173a68; }
 .labelPicker .lpHint{ font-size:11px; color:#a4adbc; margin:-4px 0 9px; }
-.lpFoot{ display:flex; justify-content:flex-end; align-items:center; margin-top:2px; gap:8px; }
+.lpColorRow{ display:flex; align-items:center; gap:7px; margin:0 0 9px; }
+.lpColorRow .lpColorLabel{ font-size:11px; color:#8b95a8; margin-right:2px; }
+.lpColorSwatch{
+  width:22px; height:22px; border-radius:5px; cursor:pointer; box-sizing:border-box;
+  border:1.5px solid #dfe4ec; padding:0;
+}
+.lpColorSwatch.active{ border-color:#173a68; box-shadow:0 0 0 2px rgba(23,58,104,.25); }
+.lpFoot{ display:flex; justify-content:space-between; align-items:center; margin-top:2px; gap:8px; }
+.lpFootLeft{ display:flex; gap:6px; }
 .lpFoot button{
   border:none; border-radius:7px; padding:8px 13px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit;
 }
 .lpApply{ background:#173a68; color:#fff; }
+.lpClear{ background:#f4f6fa; color:#c0392b; }
 .lpCancel{ background:#f4f6fa; color:#5b6b84; }
 
 /* ---- バーの右クリックメニュー（バー上に常時出る×は誤操作しやすかったため廃止し、右クリックで削除を選ぶ方式に変更） ---- */
@@ -195,6 +210,18 @@ body{
   content:''; position:absolute; left:11px; bottom:-6px; width:0; height:0;
   border-left:7px solid transparent; border-top:7px solid #fff8d6; z-index:1;
 }
+/* ---- メモの位置を指し示す先端（矢印）。根本はメモ本体の左下角に固定、先端（矢じり）はドラッグして伸縮・向き変更できる ---- */
+.memoTailLine{
+  position:absolute; z-index:49; height:2.5px; background:#d8b24a; transform-origin:0 50%; pointer-events:none; border-radius:2px;
+}
+.memoTailHandle{
+  position:absolute; z-index:51; width:20px; height:20px; margin:-10px 0 0 -10px; cursor:move;
+}
+.memoTailHandle .tailArrow{
+  position:absolute; left:1px; top:5px; width:0; height:0; transform-origin:9px 5px;
+  border-top:5px solid transparent; border-bottom:5px solid transparent; border-left:9px solid #d8b24a;
+}
+.memoTailHandle:hover .tailArrow{ border-left-color:#a8863f; }
 .memoNoteHandle{
   flex:0 0 auto; height:14px; cursor:move; display:flex; align-items:center; justify-content:center;
   color:#c9b46a; font-size:9px; letter-spacing:2px; user-select:none; border-radius:9px 9px 0 0;
@@ -211,6 +238,21 @@ body{
   content:''; position:absolute; right:3px; bottom:3px; width:7px; height:7px;
   border-right:2px solid #d8c072; border-bottom:2px solid #d8c072;
 }
+
+/* ---- 自由記述バー欄（部品表とは関係のないバーを、右クリック→「バーの設置」で追加できる小さなカード） ---- */
+.freeBarCard{
+  background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(20,35,70,.06); overflow:hidden; margin-bottom:16px;
+}
+.freeBarHead{ font-size:12.5px; font-weight:700; color:#5b6b84; padding:12px 16px 8px; }
+.freeBarHint{ font-weight:400; color:#a4adbc; margin-left:6px; }
+.freeSideCell{ padding:4px 8px !important; align-items:center; justify-content:space-between; }
+.freeLaneLabel{ font-size:11.5px; color:#8592a6; font-weight:700; }
+.freeRowBtns{ display:flex; gap:4px; }
+.rowStepBtn{
+  border:1px solid #dfe4ec; background:#fff; color:#5b6b84; width:20px; height:20px; border-radius:5px;
+  cursor:pointer; font-size:12px; line-height:1; font-family:inherit; padding:0;
+}
+.rowStepBtn:hover{ background:#eef1f6; }
 
 /* ---- 直前の1操作だけ元に戻せるトースト通知（削除のやり直しに使う。ページを開いている間だけ有効） ---- */
 .undoToast{

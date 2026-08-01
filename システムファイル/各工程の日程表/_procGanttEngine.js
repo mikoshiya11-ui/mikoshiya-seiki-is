@@ -56,10 +56,46 @@ window.ProcGantt = (function(){
 
     function uid(){ return Math.random().toString(36).slice(2,9); }
 
+    // ---- メモの矢印（吹き出しの先端）。先端座標（tailX/tailY）が無い古いメモには、左下から斜め下に伸びたデフォルト位置を与える。
+    // NC日程表_モック.htmlと同じ仕組み（根本はメモ本体の左下角、先端はドラッグで自由に伸縮・向き変更できる）。 ----
+    function ensureMemoTail(memo){
+      if(typeof memo.tailX === 'number' && typeof memo.tailY === 'number') return;
+      memo.tailX = memo.x - 36;
+      memo.tailY = memo.y + memo.h + 44;
+    }
+    const TAIL_ROOT_INSET_X = 12;
+    const TAIL_ROOT_INSET_Y = 28;
+    function memoTailGeom(memo){
+      const ax = memo.x + TAIL_ROOT_INSET_X, ay = memo.y + memo.h - TAIL_ROOT_INSET_Y;
+      const bx = memo.tailX, by = memo.tailY;
+      const dx = bx-ax, dy = by-ay;
+      const length = Math.max(1, Math.sqrt(dx*dx+dy*dy));
+      const angle = Math.atan2(dy, dx) * 180/Math.PI;
+      return { ax, ay, bx, by, length, angle };
+    }
+    function updateMemoTailVisual(memo){
+      const g = memoTailGeom(memo);
+      const lineEl = ganttInner.querySelector('.memoTailLine[data-memo-id="'+memo.id+'"]');
+      const handleEl = ganttInner.querySelector('.memoTailHandle[data-memo-id="'+memo.id+'"]');
+      if(lineEl){
+        lineEl.style.left = g.ax+'px';
+        lineEl.style.top = g.ay+'px';
+        lineEl.style.width = g.length+'px';
+        lineEl.style.transform = 'rotate('+g.angle+'deg)';
+      }
+      if(handleEl){
+        handleEl.style.left = g.bx+'px';
+        handleEl.style.top = g.by+'px';
+        const arrowEl = handleEl.querySelector('.tailArrow');
+        if(arrowEl) arrowEl.style.transform = 'rotate('+g.angle+'deg)';
+      }
+    }
+
     // ---- 自由配置メモ（吹き出し）の描画。render()のたびにganttInnerへ子要素として追加し直す（重複防止のため一旦全部消してから作り直す） ----
     function renderMemoLayer(){
-      ganttInner.querySelectorAll('.memoNote').forEach(el=> el.remove());
+      ganttInner.querySelectorAll('.memoNote, .memoTailLine, .memoTailHandle').forEach(el=> el.remove());
       memos.forEach(memo=>{
+        ensureMemoTail(memo);
         const el = document.createElement('div');
         el.className = 'memoNote';
         el.dataset.memoId = memo.id;
@@ -71,6 +107,21 @@ window.ProcGantt = (function(){
           + '<textarea class="memoNoteBody" data-role="memoBody" placeholder="メモを入力">'+esc(memo.text||'')+'</textarea>'
           + '<div class="memoNoteResize" data-role="memoResize" title="ドラッグでサイズ変更"></div>';
         ganttInner.appendChild(el);
+
+        const lineEl = document.createElement('div');
+        lineEl.className = 'memoTailLine';
+        lineEl.dataset.memoId = memo.id;
+        ganttInner.appendChild(lineEl);
+
+        const handleEl = document.createElement('div');
+        handleEl.className = 'memoTailHandle';
+        handleEl.dataset.memoId = memo.id;
+        handleEl.dataset.role = 'tailHandle';
+        handleEl.title = 'ドラッグで先端の位置・長さを変更';
+        handleEl.innerHTML = '<div class="tailArrow"></div>';
+        ganttInner.appendChild(handleEl);
+
+        updateMemoTailVisual(memo);
       });
     }
 
@@ -205,6 +256,26 @@ window.ProcGantt = (function(){
     }
     function saveMemos(){ localStorage.setItem(MEMO_KEY, JSON.stringify(memos)); }
     let memos = loadMemos();
+
+    // ---- 自由記述バー（部品表とは関係のない、このページだけで作るバー）。NC日程表_モック.htmlの「バーの設置」と同じ考え方。
+    // 空いている場所を右クリック→「バーの設置」で作成。白／黄／緑の3色から選べる。コードごとに保存し、レーン（行）は＋／－で増減できる。 ----
+    const NONLINK_COLORS = { white:'#ffffff', yellow:'#ffe066', green:'#92d050' };
+    const NONLINK_COLOR_ORDER = ['white','yellow','green'];
+    function nonlinkColorHex(name){ return NONLINK_COLORS[name] || NONLINK_COLORS.white; }
+    const FREE_KEY = STORAGE_PREFIX + '_freeBars';
+    const FREE_ROWCOUNT_KEY = STORAGE_PREFIX + '_freeRowCount';
+    function loadFreeBars(){
+      try{ const raw = localStorage.getItem(FREE_KEY); if(raw) return JSON.parse(raw); }catch(e){}
+      return {};
+    }
+    function saveFreeBars(){ localStorage.setItem(FREE_KEY, JSON.stringify(freeBars)); }
+    let freeBars = loadFreeBars();
+    function loadFreeRowCount(){
+      const v = Number(localStorage.getItem(FREE_ROWCOUNT_KEY));
+      return (v>=1 && v<=12) ? v : 1;
+    }
+    function saveFreeRowCount(){ localStorage.setItem(FREE_ROWCOUNT_KEY, String(freeRowCount)); }
+    let freeRowCount = loadFreeRowCount();
 
     // ---- 部品表を横断スキャンして、このコードが付いた工程をジョブとして集める ----
     function scanJobs(){
@@ -490,6 +561,73 @@ window.ProcGantt = (function(){
       return html;
     }
 
+    // ---- 自由記述バー欄の描画。上のジョブ一覧とは別の小さなカード（freeBarCard）に、同じ日付の列幅で表示する。 ----
+    const FREE_SIDE_W = 130;
+    function buildFreeHeader(){
+      const segs = getMonthSegments();
+      const total = segs.reduce((a,s)=>a+s.days,0);
+      const todayIdxVal = todayIdx();
+      let monthRow = '<div class="ganttMonthRow">';
+      monthRow += '<div class="ganttSideHead" style="border-right:1.5px solid #222;width:'+FREE_SIDE_W+'px;"></div>';
+      segs.forEach(seg=>{
+        monthRow += '<div class="monthCell" style="width:'+(seg.days*DAY_W)+'px;flex:0 0 '+(seg.days*DAY_W)+'px;">'+esc(seg.label)+'</div>';
+      });
+      monthRow += '</div>';
+      let dayRow = '<div class="ganttHeaderRow">';
+      dayRow += '<div class="ganttSideHead" style="width:'+FREE_SIDE_W+'px;"></div>';
+      for(let i=1;i<=total;i++){
+        const date = dateForIdx(i);
+        const dow = date.getDay();
+        const cls = dow===0 ? ' sun' : (dow===6 ? ' sat' : '');
+        const todayCls = (i===todayIdxVal) ? ' today' : '';
+        dayRow += '<div class="ganttDayCell'+cls+todayCls+'">'+date.getDate()+'</div>';
+      }
+      dayRow += '</div>';
+      return monthRow + dayRow;
+    }
+    function buildFreeBarHtml(bar){
+      const HALF_W = DAY_W/2;
+      const left = (bar.start-1)*HALF_W;
+      const width = HALF_W*(bar.end-bar.start+1);
+      const color = nonlinkColorHex(bar.color||'white');
+      const lightCls = (bar.color||'white')==='white' ? ' light' : '';
+      const s = dateForHalfIdx(bar.start), e = dateForHalfIdx(bar.end);
+      const fmtHalf = h => (h.date.getMonth()+1)+'/'+h.date.getDate()+(h.isPM?'午後':'午前');
+      const dateHint = '\n'+fmtHalf(s)+'　～　'+fmtHalf(e)+'\n（右クリックで編集・削除メニュー）';
+      return '<div class="bar'+lightCls+'" data-freebar="'+bar.id+'" style="left:'+left+'px;width:'+width+'px;background:'+color+';" title="'+esc(bar.label||'')+dateHint+'">'
+        + '<div class="handle left" data-role="handle-left"></div>'
+        + '<span class="barLabel">'+esc(bar.label||'')+'</span>'
+        + '<div class="handle right" data-role="handle-right"></div>'
+        + '</div>';
+    }
+    function buildFreeRows(){
+      const unitCount = currentUnitCount();
+      const totalDayWidth = unitCount * DAY_W;
+      let html = '';
+      for(let lane=0; lane<freeRowCount; lane++){
+        const bars = freeBars[lane] || [];
+        html += '<div class="jobRow" data-freelane="'+lane+'">';
+        html += '<div class="jobSideCell freeSideCell" style="width:'+FREE_SIDE_W+'px;">'
+          + '<span class="freeLaneLabel">自由記述'+(freeRowCount>1 ? (lane+1) : '')+'</span>'
+          + (lane===freeRowCount-1
+              ? ('<span class="freeRowBtns">'
+                  + '<button type="button" class="rowStepBtn" data-role="freerowinc" title="行を追加">＋</button>'
+                  + (freeRowCount>1 ? '<button type="button" class="rowStepBtn" data-role="freerowdec" title="最後の行を削除">－</button>' : '')
+                  + '</span>')
+              : '')
+          + '</div>';
+        html += '<div class="track" data-role="freetrack" data-lane="'+lane+'" data-unit-count="'+unitCount+'" style="width:'+totalDayWidth+'px;">';
+        html += bars.map(b=>buildFreeBarHtml(b)).join('');
+        html += '</div>';
+        html += '</div>';
+      }
+      return html;
+    }
+    function renderFree(){
+      if(!freeGanttInner) return;
+      freeGanttInner.innerHTML = buildFreeHeader() + buildFreeRows();
+    }
+
     function render(){
       refreshJobs();
       const scheduled = jobs.filter(j=>j.date).sort((a,b)=>{
@@ -518,6 +656,7 @@ window.ProcGantt = (function(){
           + (soonCount ? '<span class="sumChip warn">期限間近 <b>'+soonCount+'</b>件</span>' : '')
           + (overCount ? '<span class="sumChip danger">期限超過 <b>'+overCount+'</b>件</span>' : '');
       }
+      renderFree();
     }
 
     // ---- 日付未設定のジョブ一覧：ここから初めて日付を入れるとバーとして表示されるようになる ----
@@ -655,6 +794,104 @@ window.ProcGantt = (function(){
         if(bodyEl) bodyEl.focus();
       });
     }
+
+    // ---- 自由記述バー欄（freeBarCard）。静的HTML側には無いので、ジョブ一覧のカードのすぐ下にここで作って差し込む ----
+    let freeBarCardEl = document.getElementById('freeBarCard');
+    if(!freeBarCardEl){
+      freeBarCardEl = document.createElement('div');
+      freeBarCardEl.id = 'freeBarCard';
+      freeBarCardEl.className = 'freeBarCard';
+      freeBarCardEl.innerHTML =
+        '<div class="freeBarHead">自由記述バー<span class="freeBarHint">（部品表とは関係のないバーを、空いている場所を右クリック→「バーの設置」で追加できます。色は白／黄／緑から選べます）</span></div>'
+        + '<div class="ganttScroll" id="freeGanttScroll"><div class="ganttInner" id="freeGanttInner"></div></div>';
+      ganttCard.insertAdjacentElement('afterend', freeBarCardEl);
+    }
+    const freeGanttInner = document.getElementById('freeGanttInner');
+
+    // ---- 自由記述バーのラベル・色を編集するポップアップ（NC日程表_モック.htmlのlabelPickerと同じ考え方） ----
+    let labelPickerEl = document.getElementById('procGanttLabelPicker');
+    if(!labelPickerEl){
+      labelPickerEl = document.createElement('div');
+      labelPickerEl.id = 'procGanttLabelPicker';
+      labelPickerEl.className = 'labelPicker';
+      labelPickerEl.innerHTML =
+        '<textarea id="procGanttLpInput" placeholder="バーの内容を入力"></textarea>'
+        + '<div class="lpColorRow"><span class="lpColorLabel">バーの色：</span>'
+        + '<button type="button" class="lpColorSwatch" data-color="white" style="background:#ffffff;" title="白"></button>'
+        + '<button type="button" class="lpColorSwatch" data-color="yellow" style="background:#ffe066;" title="黄"></button>'
+        + '<button type="button" class="lpColorSwatch" data-color="green" style="background:#92d050;" title="緑"></button>'
+        + '</div>'
+        + '<div class="lpFoot"><div class="lpFootLeft">'
+        + '<button class="lpCancel" id="procGanttLpCancel" type="button">キャンセル</button>'
+        + '<button class="lpClear" id="procGanttLpClear" type="button">クリア</button>'
+        + '</div><button class="lpApply" id="procGanttLpApply" type="button">決定</button></div>';
+      document.body.appendChild(labelPickerEl);
+    }
+    const lpInput = labelPickerEl.querySelector('#procGanttLpInput');
+    const lpApplyBtn = labelPickerEl.querySelector('#procGanttLpApply');
+    const lpClearBtn = labelPickerEl.querySelector('#procGanttLpClear');
+    const lpCancelBtn = labelPickerEl.querySelector('#procGanttLpCancel');
+    const lpColorBtns = Array.prototype.slice.call(labelPickerEl.querySelectorAll('.lpColorSwatch'));
+    let lpTarget = null; // { lane, id, isNew, color }
+    function setLpColor(name){
+      if(!lpTarget) return;
+      lpTarget.color = name;
+      lpColorBtns.forEach(btn=> btn.classList.toggle('active', btn.dataset.color===name));
+    }
+    lpColorBtns.forEach(btn=> btn.addEventListener('click', ()=> setLpColor(btn.dataset.color)));
+    function openLabelPicker(lane, id, currentLabel, anchorRect, isNew){
+      const bar = (freeBars[lane]||[]).find(b=>b.id===id);
+      lpTarget = { lane, id, isNew: !!isNew, color: (bar && bar.color) || 'white' };
+      lpInput.value = currentLabel || '';
+      setLpColor(lpTarget.color);
+      const pickerW = 300;
+      let left = anchorRect.left, top = anchorRect.bottom + 6;
+      if(left + pickerW > window.innerWidth - 10) left = window.innerWidth - pickerW - 10;
+      if(left < 10) left = 10;
+      if(top + 220 > window.innerHeight){ top = anchorRect.top - 226; if(top < 10) top = 10; }
+      labelPickerEl.style.left = left+'px';
+      labelPickerEl.style.top = top+'px';
+      labelPickerEl.classList.add('open');
+      lpInput.focus();
+      lpInput.select();
+    }
+    function closeLabelPicker(){
+      labelPickerEl.classList.remove('open');
+      lpTarget = null;
+    }
+    function cancelLabelPicker(){
+      if(!lpTarget) return;
+      const { lane, id, isNew } = lpTarget;
+      if(isNew){
+        freeBars[lane] = (freeBars[lane]||[]).filter(b=>b.id!==id);
+        saveFreeBars();
+        closeLabelPicker();
+        renderFree();
+        return;
+      }
+      closeLabelPicker();
+    }
+    function commitLabelPicker(newLabel){
+      if(!lpTarget) return;
+      const { lane, id, color } = lpTarget;
+      const bar = (freeBars[lane]||[]).find(b=>b.id===id);
+      if(bar){
+        bar.label = (newLabel||'').trim();
+        bar.color = color || 'white';
+        saveFreeBars();
+      }
+      closeLabelPicker();
+      renderFree();
+    }
+    lpApplyBtn.addEventListener('click', ()=> commitLabelPicker(lpInput.value));
+    lpClearBtn.addEventListener('click', ()=> commitLabelPicker(''));
+    lpCancelBtn.addEventListener('click', cancelLabelPicker);
+    lpInput.addEventListener('keydown', (e)=>{ if(e.key==='Escape'){ e.preventDefault(); cancelLabelPicker(); } });
+    document.addEventListener('mousedown', (e)=>{
+      if(!labelPickerEl.classList.contains('open')) return;
+      if(labelPickerEl.contains(e.target)) return;
+      cancelLabelPicker();
+    });
 
     // ---- 工数（ローカル仮項目）の直接編集 ----
     ganttInner.addEventListener('input', (e)=>{
@@ -850,6 +1087,205 @@ window.ProcGantt = (function(){
       drag = null;
     });
 
+    // ---- 自由記述バー：バー上での右クリック＝編集／削除、何もない空きマスでの右クリック＝「バーの設置」（NC日程表_モック.htmlと同じ考え方） ----
+    let freeCtxMenu = document.getElementById('procGanttFreeCtxMenu');
+    if(!freeCtxMenu){
+      freeCtxMenu = document.createElement('div');
+      freeCtxMenu.id = 'procGanttFreeCtxMenu';
+      freeCtxMenu.className = 'barCtxMenu';
+      freeCtxMenu.innerHTML =
+        '<button type="button" id="procGanttCtxPlaceBar">バーの設置</button>'
+        + '<button type="button" id="procGanttCtxEditFreeBar">編集</button>'
+        + '<button type="button" class="danger" id="procGanttCtxDeleteFreeBar">削除</button>';
+      document.body.appendChild(freeCtxMenu);
+    }
+    const ctxPlaceBarBtn = freeCtxMenu.querySelector('#procGanttCtxPlaceBar');
+    const ctxEditFreeBarBtn = freeCtxMenu.querySelector('#procGanttCtxEditFreeBar');
+    const ctxDeleteFreeBarBtn = freeCtxMenu.querySelector('#procGanttCtxDeleteFreeBar');
+    let ctxFreeBarTarget = null; // { lane, id, barEl }
+    let ctxPlaceTarget = null; // { lane, startUnit }
+    function openFreeCtxMenu(x, y){
+      freeCtxMenu.classList.add('open');
+      const menuW = 150;
+      let left = x, top = y;
+      if(left + menuW > window.innerWidth - 10) left = window.innerWidth - menuW - 10;
+      if(left < 10) left = 10;
+      freeCtxMenu.style.left = left+'px';
+      freeCtxMenu.style.top = top+'px';
+    }
+    function closeFreeCtxMenu(){
+      freeCtxMenu.classList.remove('open');
+      ctxFreeBarTarget = null;
+      ctxPlaceTarget = null;
+    }
+    if(freeGanttInner){
+      freeGanttInner.addEventListener('contextmenu', (e)=>{
+        const barEl = e.target.closest('[data-freebar]');
+        if(barEl){
+          e.preventDefault();
+          const trackEl = barEl.closest('[data-role="freetrack"]');
+          ctxFreeBarTarget = { lane: Number(trackEl.dataset.lane), id: barEl.dataset.freebar, barEl };
+          ctxPlaceBarBtn.style.display = 'none';
+          ctxEditFreeBarBtn.style.display = '';
+          ctxDeleteFreeBarBtn.style.display = '';
+          openFreeCtxMenu(e.clientX, e.clientY);
+          return;
+        }
+        const trackEl = e.target.closest('[data-role="freetrack"]');
+        if(!trackEl) return;
+        e.preventDefault();
+        const lane = Number(trackEl.dataset.lane);
+        const startUnit = unitFromClientX(trackEl, e.clientX);
+        ctxPlaceTarget = { lane, startUnit };
+        ctxPlaceBarBtn.style.display = '';
+        ctxEditFreeBarBtn.style.display = 'none';
+        ctxDeleteFreeBarBtn.style.display = 'none';
+        openFreeCtxMenu(e.clientX, e.clientY);
+      });
+    }
+    document.addEventListener('click', (e)=>{
+      if(!freeCtxMenu.classList.contains('open')) return;
+      if(freeCtxMenu.contains(e.target)) return;
+      closeFreeCtxMenu();
+    });
+    window.addEventListener('scroll', closeFreeCtxMenu, true);
+    ctxPlaceBarBtn.addEventListener('click', ()=>{
+      if(!ctxPlaceTarget) return;
+      const { lane, startUnit } = ctxPlaceTarget;
+      closeFreeCtxMenu();
+      const newId = uid();
+      const DEFAULT_WIDTH = 2; // 半日単位×2＝1日分
+      freeBars[lane] = freeBars[lane] || [];
+      freeBars[lane].push({ id:newId, start:startUnit, end:startUnit+DEFAULT_WIDTH-1, label:'', color:'white' });
+      saveFreeBars();
+      renderFree();
+      const barEl = freeGanttInner.querySelector('[data-freebar="'+newId+'"]');
+      if(barEl) openLabelPicker(lane, newId, '', barEl.getBoundingClientRect(), true);
+    });
+    ctxEditFreeBarBtn.addEventListener('click', ()=>{
+      if(!ctxFreeBarTarget) return;
+      const { lane, id, barEl } = ctxFreeBarTarget;
+      const bar = (freeBars[lane]||[]).find(b=>b.id===id);
+      closeFreeCtxMenu();
+      if(bar) openLabelPicker(lane, id, bar.label, barEl.getBoundingClientRect(), false);
+    });
+    ctxDeleteFreeBarBtn.addEventListener('click', ()=>{
+      if(!ctxFreeBarTarget) return;
+      const { lane, id } = ctxFreeBarTarget;
+      closeFreeCtxMenu();
+      const bar = (freeBars[lane]||[]).find(b=>b.id===id);
+      const snapshot = bar ? JSON.parse(JSON.stringify(bar)) : null;
+      freeBars[lane] = (freeBars[lane]||[]).filter(b=>b.id!==id);
+      saveFreeBars();
+      renderFree();
+      if(snapshot){
+        showUndo((snapshot.label||'バー')+'を削除しました', ()=>{
+          freeBars[lane] = freeBars[lane] || [];
+          freeBars[lane].push(snapshot);
+          saveFreeBars();
+          renderFree();
+        });
+      }
+    });
+
+    if(freeGanttInner){
+      freeGanttInner.addEventListener('dblclick', (e)=>{
+        const barEl = e.target.closest('[data-freebar]');
+        if(!barEl) return;
+        const trackEl = barEl.closest('[data-role="freetrack"]');
+        const lane = Number(trackEl.dataset.lane);
+        const id = barEl.dataset.freebar;
+        const bar = (freeBars[lane]||[]).find(b=>b.id===id);
+        if(!bar) return;
+        openLabelPicker(lane, id, bar.label, barEl.getBoundingClientRect(), false);
+      });
+
+      // ---- 行（レーン）の＋／－ ----
+      freeGanttInner.addEventListener('click', (e)=>{
+        const btn = e.target.closest('[data-role="freerowinc"], [data-role="freerowdec"]');
+        if(!btn) return;
+        if(btn.dataset.role === 'freerowinc'){
+          freeRowCount = Math.min(12, freeRowCount+1);
+          saveFreeRowCount();
+          renderFree();
+          return;
+        }
+        if(freeRowCount <= 1) return;
+        const lastLane = freeRowCount-1;
+        const bars = freeBars[lastLane] || [];
+        if(bars.length && !window.confirm('この行のバーも消えます。よろしいですか？')) return;
+        delete freeBars[lastLane];
+        freeRowCount -= 1;
+        saveFreeBars();
+        saveFreeRowCount();
+        renderFree();
+      });
+
+      // ---- 自由記述バーのドラッグ操作：移動・両端の伸縮（レーンをまたいだ移動は無し） ----
+      let freeDrag = null;
+      freeGanttInner.addEventListener('mousedown', (e)=>{
+        const handleLeft = e.target.closest('[data-role="handle-left"]');
+        const handleRight = e.target.closest('[data-role="handle-right"]');
+        const barEl = e.target.closest('[data-freebar]');
+        if(!barEl) return;
+        e.preventDefault();
+        const trackEl = barEl.closest('[data-role="freetrack"]');
+        const lane = Number(trackEl.dataset.lane);
+        const id = barEl.dataset.freebar;
+        const bar = (freeBars[lane]||[]).find(b=>b.id===id);
+        if(!bar) return;
+        const startUnit = unitFromClientX(trackEl, e.clientX);
+        let mode = 'move';
+        if(handleLeft) mode = 'resize-left';
+        else if(handleRight) mode = 'resize-right';
+        freeDrag = { trackEl, lane, id, mode, orig:{ start:bar.start, end:bar.end }, working:{ start:bar.start, end:bar.end }, startUnit };
+      });
+      document.addEventListener('mousemove', (e)=>{
+        if(!freeDrag) return;
+        const unit = unitFromClientX(freeDrag.trackEl, e.clientX);
+        const delta = unit - freeDrag.startUnit;
+        const unitCount = (Number(freeDrag.trackEl.dataset.unitCount) || currentUnitCount()) * 2;
+        if(freeDrag.mode === 'move'){
+          const span = freeDrag.orig.end - freeDrag.orig.start;
+          let ns = freeDrag.orig.start + delta;
+          if(ns < 1) ns = 1;
+          if(ns + span > unitCount) ns = unitCount - span;
+          freeDrag.working = { start: ns, end: ns+span };
+        }else if(freeDrag.mode === 'resize-left'){
+          let ns = freeDrag.orig.start + delta;
+          if(ns < 1) ns = 1;
+          if(ns > freeDrag.orig.end) ns = freeDrag.orig.end;
+          freeDrag.working = { start: ns, end: freeDrag.orig.end };
+        }else{
+          let ne = freeDrag.orig.end + delta;
+          if(ne > unitCount) ne = unitCount;
+          if(ne < freeDrag.orig.start) ne = freeDrag.orig.start;
+          freeDrag.working = { start: freeDrag.orig.start, end: ne };
+        }
+        const barEl = freeDrag.trackEl.querySelector('[data-freebar="'+freeDrag.id+'"]');
+        if(barEl){
+          const HALF_W = DAY_W/2;
+          barEl.style.left = ((freeDrag.working.start-1)*HALF_W)+'px';
+          barEl.style.width = ((freeDrag.working.end-freeDrag.working.start+1)*HALF_W)+'px';
+        }
+      });
+      document.addEventListener('mouseup', ()=>{
+        if(!freeDrag) return;
+        const { lane, id, working, orig } = freeDrag;
+        freeDrag = null;
+        if(working.start === orig.start && working.end === orig.end) return;
+        const bar = (freeBars[lane]||[]).find(b=>b.id===id);
+        if(!bar) return;
+        bar.start = working.start; bar.end = working.end;
+        saveFreeBars();
+        renderFree();
+        showUndo('バーを動かしました', ()=>{
+          const b2 = (freeBars[lane]||[]).find(b=>b.id===id);
+          if(b2){ b2.start = orig.start; b2.end = orig.end; saveFreeBars(); renderFree(); }
+        });
+      });
+    }
+
     // ---- 自由配置メモ（吹き出し）：ドラッグ移動・リサイズ・テキスト編集・右クリック削除（元に戻す対応） ----
     let memoCtxMenu = document.getElementById('procGanttMemoCtxMenu');
     if(!memoCtxMenu){
@@ -905,8 +1341,16 @@ window.ProcGantt = (function(){
       });
     }
 
-    let memoDrag = null; // { type:'move'|'resize', id, startClientX, startClientY, orig:{x,y,w,h} }
+    let memoDrag = null; // { type:'move'|'resize'|'tail', id, startClientX, startClientY, orig:{x,y,w,h,tailX,tailY} }
     ganttInner.addEventListener('mousedown', (e)=>{
+      const tailHandleEl = e.target.closest('[data-role="tailHandle"]');
+      if(tailHandleEl){
+        const memo = memos.find(m=>m.id===tailHandleEl.dataset.memoId);
+        if(!memo) return;
+        e.preventDefault();
+        memoDrag = { type:'tail', id: memo.id, startClientX: e.clientX, startClientY: e.clientY, orig:{ tailX:memo.tailX, tailY:memo.tailY } };
+        return;
+      }
       const handleEl = e.target.closest('[data-role="memoHandle"]');
       const resizeEl = e.target.closest('[data-role="memoResize"]');
       if(!handleEl && !resizeEl) return;
@@ -915,7 +1359,8 @@ window.ProcGantt = (function(){
       const memo = memos.find(m=>m.id===noteEl.dataset.memoId);
       if(!memo) return;
       e.preventDefault();
-      memoDrag = { type: handleEl ? 'move' : 'resize', id: memo.id, startClientX: e.clientX, startClientY: e.clientY, orig:{ x:memo.x, y:memo.y, w:memo.w, h:memo.h } };
+      ensureMemoTail(memo);
+      memoDrag = { type: handleEl ? 'move' : 'resize', id: memo.id, startClientX: e.clientX, startClientY: e.clientY, orig:{ x:memo.x, y:memo.y, w:memo.w, h:memo.h, tailX:memo.tailX, tailY:memo.tailY } };
     });
     document.addEventListener('mousemove', (e)=>{
       if(!memoDrag) return;
@@ -927,11 +1372,20 @@ window.ProcGantt = (function(){
       if(memoDrag.type==='move'){
         memo.x = Math.max(0, memoDrag.orig.x + dx);
         memo.y = Math.max(0, memoDrag.orig.y + dy);
+        // 先端（矢印の的）も本体と一緒に動かす。向き・長さは保ったまま平行移動する（先端だけ動かしたい時はtailHandleを直接つかむ）
+        memo.tailX = memoDrag.orig.tailX + dx;
+        memo.tailY = memoDrag.orig.tailY + dy;
         if(noteEl){ noteEl.style.left = memo.x+'px'; noteEl.style.top = memo.y+'px'; }
-      }else{
+        updateMemoTailVisual(memo);
+      }else if(memoDrag.type==='resize'){
         memo.w = Math.max(90, memoDrag.orig.w + dx);
         memo.h = Math.max(56, memoDrag.orig.h + dy);
         if(noteEl){ noteEl.style.width = memo.w+'px'; noteEl.style.height = memo.h+'px'; }
+        updateMemoTailVisual(memo);
+      }else if(memoDrag.type==='tail'){
+        memo.tailX = memoDrag.orig.tailX + dx;
+        memo.tailY = memoDrag.orig.tailY + dy;
+        updateMemoTailVisual(memo);
       }
     });
     document.addEventListener('mouseup', ()=>{
@@ -953,6 +1407,11 @@ window.ProcGantt = (function(){
       if(e.key.indexOf('sakaeIS_buhinhyoMock_v1_')===0 || e.key===EXTRA_KEY){
         extra = loadExtra();
         render();
+      }
+      if(e.key===FREE_KEY || e.key===FREE_ROWCOUNT_KEY){
+        freeBars = loadFreeBars();
+        freeRowCount = loadFreeRowCount();
+        renderFree();
       }
     });
   }
