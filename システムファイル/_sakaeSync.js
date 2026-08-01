@@ -79,7 +79,9 @@
     return typeof key === 'string' && key.indexOf(KEY_PREFIX) === 0;
   }
 
-  // ---- localStorageへの書き込みを乗っ取り、対象キーならSupabaseにも送る ----
+  // ---- localStorageへの書き込み・削除を乗っ取り、対象キーならSupabaseにも送る ----
+  // （確定解除・残品表の削除などlocalStorage.removeItem()を使う操作も、ここでフックしないと
+  //   Supabase側に古い値が残り続け、他の人の画面や次回読み込み時に元の状態へ巻き戻ってしまうため必須）
   function installLocalStorageHook(){
     const origSetItem = Storage.prototype.setItem;
     Storage.prototype.setItem = function(key, value){
@@ -88,11 +90,23 @@
         schedulePush(key, value);
       }
     };
+    const origRemoveItem = Storage.prototype.removeItem;
+    Storage.prototype.removeItem = function(key){
+      origRemoveItem.apply(this, arguments);
+      if(this === window.localStorage && isSyncKey(key) && !applyingRemoteUpdate){
+        scheduleDelete(key);
+      }
+    };
   }
 
   function schedulePush(key, value){
     if(pushTimers[key]) clearTimeout(pushTimers[key]);
     pushTimers[key] = setTimeout(()=> pushKey(key, value), PUSH_DEBOUNCE_MS);
+  }
+
+  function scheduleDelete(key){
+    if(pushTimers[key]) clearTimeout(pushTimers[key]);
+    pushTimers[key] = setTimeout(()=> deleteKey(key), PUSH_DEBOUNCE_MS);
   }
 
   async function pushKey(key, value){
@@ -104,6 +118,15 @@
       await sb.from('kv_store').upsert({ key, value: parsed, updated_by: user ? user.id : null }, { onConflict:'key' });
     }catch(e){
       console.warn('[sakaeSync] push失敗:', key, e);
+    }
+  }
+
+  async function deleteKey(key){
+    delete pushTimers[key];
+    try{
+      await sb.from('kv_store').delete().eq('key', key);
+    }catch(e){
+      console.warn('[sakaeSync] 削除の同期に失敗:', key, e);
     }
   }
 
@@ -131,6 +154,26 @@
     }
   }
 
+  // ---- 他の人がSupabase側でキーを削除した（確定解除・残品表の削除など）ときに、このブラウザのlocalStorageからも消す ----
+  function applyRemoteDelete(key){
+    if(!key) return;
+    applyingRemoteUpdate = true;
+    try{
+      if(localStorage.getItem(key) === null) return; // 元々無ければ何もしない
+      localStorage.removeItem(key);
+      try{
+        window.dispatchEvent(new StorageEvent('storage', { key, newValue: null, storageArea: localStorage }));
+      }catch(e){
+        const ev = document.createEvent('Event');
+        ev.initEvent('storage', false, false);
+        ev.key = key; ev.newValue = null; ev.storageArea = localStorage;
+        window.dispatchEvent(ev);
+      }
+    }finally{
+      applyingRemoteUpdate = false;
+    }
+  }
+
   // ---- 初回：Supabase側にある分は取り込み、Supabaseにまだ無い（＝このブラウザにしか無い）分は送る ----
   async function initialSync(){
     const { data, error } = await sb.from('kv_store').select('key, value');
@@ -150,7 +193,11 @@
   function subscribeRealtime(){
     sb.channel('kv_store_changes')
       .on('postgres_changes', { event:'*', schema:'public', table:'kv_store' }, (payload)=>{
-        if(payload.eventType === 'DELETE') return; // このアプリでは基本的にキーの削除は使わない想定
+        if(payload.eventType === 'DELETE'){
+          // 削除前の行のkeyはpayload.oldに入っている
+          applyRemoteDelete(payload.old && payload.old.key);
+          return;
+        }
         applyRemoteRow(payload.new);
       })
       .subscribe();
