@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MIKOSHIYA SEIKI-iS｜㈱ミコシヤ 生産管理システム</title>
+<title>SAKAE SEIKI-iS｜㈱ミコシヤ 生産管理システム</title>
 <style>
   *{box-sizing:border-box;}
   body{
@@ -343,7 +343,7 @@
   <div class="topbar"><span id="lastUpdatedLabel"></span><span>㈱ミコシヤ社内システム</span></div>
 
   <div class="hero" id="hero">
-    <div class="logo"><img src="システムファイル/logo.png" alt="MIKOSHIYA SEIKI-iS"></div>
+    <div class="logo"><img src="システムファイル/logo2.png" alt="SAKAE SEIKI-iS"></div>
     <div class="tagline">社内No.・受注案件をここから検索／新規作成</div>
     <div class="searchWrap">
       <div class="searchBox">
@@ -867,7 +867,7 @@
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'MIKOSHIYA_SEIKI-iS_完了案件_'+todayStr()+'.csv';
+    a.download = 'SAKAE_SEIKI-iS_完了案件_'+todayStr()+'.csv';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -943,7 +943,7 @@
       if(raw != null) linkedData[key] = raw;
     });
     return {
-      app: 'MIKOSHIYA SEIKI-iS',
+      app: 'SAKAE SEIKI-iS',
       exportedAt: new Date().toISOString(),
       records: records,
       linkedData: linkedData
@@ -956,7 +956,7 @@
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'MIKOSHIYA_SEIKI-iS_データ_' + todayStr().replace(/-/g,'') + '.json';
+    a.download = 'SAKAE_SEIKI-iS_データ_' + todayStr().replace(/-/g,'') + '.json';
     document.body.appendChild(a);
     a.click();
     a.remove();

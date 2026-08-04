@@ -25,9 +25,9 @@ window.ProcGantt = (function(){
     const BACK_LINK = config.backLink || (ctxProductNo ? ('../個別日程表_モック.html?productNo='+encodeURIComponent(ctxProductNo)) : '../残品表_モック.html');
     const BACK_LABEL = config.backLabel || (ctxProductNo ? '← 個別日程表へ' : '← 工程別残品表へ');
 
-    document.title = CODE + '日程表｜MIKOSHIYA SEIKI-iS';
+    document.title = CODE + '日程表｜SAKAE SEIKI-iS';
     const brandEl = document.querySelector('.topbar .brand');
-    if(brandEl) brandEl.innerHTML = '<span class="sakae">MIKOSHIYA SEIKI</span><span class="is">-iS</span>';
+    if(brandEl) brandEl.innerHTML = '<span class="sakae">SAKAE SEIKI</span><span class="is">-iS</span>';
     const pageNameEl = document.getElementById('pageName');
     if(pageNameEl) pageNameEl.textContent = CODE + '日程表（工程ごとの日程表：共通エンジン／部品表とリンク）';
     const backLinkEl = document.getElementById('backLink');
