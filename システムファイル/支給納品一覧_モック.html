@@ -150,15 +150,16 @@
   td.dayCell.today{ background:rgba(250,204,21,.28); }
   /* 月の境界を黒線でわかりやすく */
   .board th.monthStart, .board td.monthStart{ border-left:2px solid #1a2233; }
-  /* 普段は枠より少し小さい四角の色だけ。品名などはホバーした時だけ出す（テーブルのマス目をまたいで
-     文字をはみ出させるのはブラウザ側で不安定なので、普段は小さく畳んでおいて事故が起きないようにする） ----- */
+  /* 普段は列幅に収まる分だけ品名を省略表示（…）しておき、テーブルのマス目をまたいで
+     文字をはみ出させるのはブラウザ側で不安定なので、はみ出す手前で畳んでおいて事故が起きないようにする。
+     ホバー中は全文が見えるように大きく広がる。 ----- */
   .dayBox{
-    display:inline-flex; align-items:center; justify-content:center; gap:2px;
-    width:20px; height:26px; overflow:hidden; position:relative; z-index:0; margin:2px 0 9px 6px;
-    border-radius:0; color:#fff; font-size:10.5px; font-weight:700; cursor:pointer; padding:0;
+    display:inline-flex; align-items:center; justify-content:flex-start; gap:2px;
+    width:32px; height:26px; overflow:hidden; position:relative; z-index:0; margin:2px 0 9px 3px;
+    border-radius:0; color:#fff; font-size:10px; font-weight:700; cursor:pointer; padding:0 2px;
     box-shadow:0 1px 2px rgba(20,35,70,.25); border:1.5px solid rgba(255,255,255,.6); white-space:nowrap;
   }
-  .dayBox .dbText{ display:none; }
+  .dayBox .dbText{ display:inline-block; max-width:26px; overflow:hidden; text-overflow:ellipsis; }
   .dayBox .cBadge{ display:none; }
   /* 通常時は固定列より奥（z-index:0）にして隠れるべき時は隠れるようにし、
      ホバー中だけ大きく広がって品名を表示し、他のBOX・固定列より手前に持ってくる ----- */
@@ -166,7 +167,7 @@
     width:max-content; height:auto; min-height:22px; overflow:visible; padding:2px 5px;
     z-index:20; filter:brightness(1.08);
   }
-  .dayBox:hover .dbText{ display:inline; }
+  .dayBox:hover .dbText{ max-width:none; overflow:visible; }
   .dayBox:hover .cBadge{ display:inline-flex; }
   /* 予定日のマス目を指す吹き出しの口（箱の色に合わせて自動で色を変える）。
      ホバーで箱が右へ伸びても、口の位置（箱の左端からの距離）は変えず、常に同じ日を指したままにする ----- */

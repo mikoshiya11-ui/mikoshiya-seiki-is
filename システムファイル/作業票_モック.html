@@ -274,8 +274,9 @@
   </div>
 
   <div class="rowCtxMenu" id="rowCtxMenu">
-    <button type="button" id="ctxCopyProc">この行の工程をコピー</button>
-    <button type="button" id="ctxPasteProc">工程を貼り付け</button>
+    <button type="button" id="ctxCopyProc">この行をコピー（部品名〜工程）</button>
+    <button type="button" id="ctxCopyProcOnly">工程だけコピー</button>
+    <button type="button" id="ctxPasteProc">貼り付け</button>
   </div>
 
   <div class="undoToast" id="undoToast">
@@ -751,19 +752,21 @@
     }
   });
 
-  // ---- 部品行の右クリックメニュー：工程のコピー／貼り付け ----
+  // ---- 部品行の右クリックメニュー：行のコピー／貼り付け（部品名〜工程まるごと、または工程だけ） ----
   const rowCtxMenu = document.getElementById('rowCtxMenu');
   const ctxCopyProc = document.getElementById('ctxCopyProc');
+  const ctxCopyProcOnly = document.getElementById('ctxCopyProcOnly');
   const ctxPasteProc = document.getElementById('ctxPasteProc');
   let ctxMenuPartIdx = null;
-  let copiedProcesses = null; // { fromLabel, processes:[...] }
+  let copiedRow = null; // { mode:'row'|'proc', fromLabel, fields:{...}|null, processes:[...] }
+  const ROW_COPY_FIELDS = ['name','material','finishedSize','heatTreatSpec','surfaceTreatSpec','qty','memo'];
 
   function openRowCtxMenu(idx, x, y){
     ctxMenuPartIdx = idx;
-    ctxPasteProc.disabled = !copiedProcesses;
-    ctxPasteProc.textContent = copiedProcesses
-      ? '工程を貼り付け（'+copiedProcesses.fromLabel+'の内容）'
-      : '工程を貼り付け（先にコピーしてください）';
+    ctxPasteProc.disabled = !copiedRow;
+    ctxPasteProc.textContent = copiedRow
+      ? '貼り付け（'+copiedRow.fromLabel+'の'+(copiedRow.mode==='row'?'部品名〜工程':'工程')+'）'
+      : '貼り付け（先にコピーしてください）';
     rowCtxMenu.classList.add('open');
     const menuW = 240;
     let left = x, top = y;
@@ -791,21 +794,43 @@
   ctxCopyProc.addEventListener('click', ()=>{
     if(ctxMenuPartIdx === null) return;
     const part = state.parts[ctxMenuPartIdx];
-    copiedProcesses = {
+    const fields = {};
+    ROW_COPY_FIELDS.forEach(f=>{ fields[f] = part[f]; });
+    copiedRow = {
+      mode:'row',
       fromLabel: '社内No' + (part.subNo || ctxMenuPartIdx),
+      fields: fields,
+      processes: part.processes.map(p=> Object.assign({}, p, { id: uid() }))
+    };
+    closeRowCtxMenu();
+  });
+  ctxCopyProcOnly.addEventListener('click', ()=>{
+    if(ctxMenuPartIdx === null) return;
+    const part = state.parts[ctxMenuPartIdx];
+    copiedRow = {
+      mode:'proc',
+      fromLabel: '社内No' + (part.subNo || ctxMenuPartIdx),
+      fields: null,
       processes: part.processes.map(p=> Object.assign({}, p, { id: uid() }))
     };
     closeRowCtxMenu();
   });
   ctxPasteProc.addEventListener('click', ()=>{
-    if(ctxMenuPartIdx === null || !copiedProcesses) return;
+    if(ctxMenuPartIdx === null || !copiedRow) return;
     if(!checkEditable()){ closeRowCtxMenu(); return; }
     const part = state.parts[ctxMenuPartIdx];
-    if(part.processes.length && !window.confirm('この行の工程を上書きして貼り付けますか？（現在の工程内容は消えます）')){
+    const willOverwriteFields = copiedRow.mode==='row';
+    const confirmMsg = willOverwriteFields
+      ? 'この行の部品名〜工程を上書きして貼り付けますか？（現在の内容は消えます）'
+      : 'この行の工程を上書きして貼り付けますか？（現在の工程内容は消えます）';
+    if(part.processes.length && !window.confirm(confirmMsg)){
       closeRowCtxMenu();
       return;
     }
-    part.processes = copiedProcesses.processes.map(p=> Object.assign({}, p, { id: uid() }));
+    if(willOverwriteFields){
+      ROW_COPY_FIELDS.forEach(f=>{ part[f] = copiedRow.fields[f]; });
+    }
+    part.processes = copiedRow.processes.map(p=> Object.assign({}, p, { id: uid() }));
     save();
     render();
     closeRowCtxMenu();
@@ -856,6 +881,34 @@
     procPicker.classList.remove('open');
     ppPartIdx = null;
   }
+  // ---- 他タブ・他端末からの反映（Supabase経由のリアルタイム同期含む）で部品一覧を再描画する際、
+  // 今まさに入力中のセルまで巻き込んで作り直してしまい、入力中の文字が消える不具合があった。
+  // 対策：入力中のセル（フォーカス中の.cellInput）があれば、①そのセルの値は今の入力内容を優先して保持し、
+  // 再描画後に②同じセルへフォーカスとカーソル位置を戻す。 ----
+  function captureFocusedCell(){
+    const el = document.activeElement;
+    if(!el || !el.classList || !el.classList.contains('cellInput')) return null;
+    const tr = el.closest('tr[data-idx]');
+    if(!tr || !partsBody.contains(el)) return null;
+    return {
+      idx: Number(tr.dataset.idx),
+      field: el.dataset.field,
+      value: el.value,
+      selectionStart: (typeof el.selectionStart === 'number') ? el.selectionStart : null,
+      selectionEnd: (typeof el.selectionEnd === 'number') ? el.selectionEnd : null
+    };
+  }
+  function restoreFocusedCell(info){
+    if(!info) return;
+    const sel = '.cellInput[data-field="'+info.field+'"]';
+    const tr = partsBody.querySelector('tr[data-idx="'+info.idx+'"]');
+    const el = tr ? tr.querySelector(sel) : null;
+    if(!el) return;
+    el.focus();
+    if(info.selectionStart != null && info.selectionEnd != null){
+      try{ el.setSelectionRange(info.selectionStart, info.selectionEnd); }catch(err){}
+    }
+  }
   window.addEventListener('storage', (e)=>{
     if(e.key === CONFIRM_KEY){
       confirmState = loadConfirm();
@@ -865,9 +918,15 @@
     }
     if(e.key !== storageKeyFor(urlProductNo)) return;
     if(e.newValue == null) return;
+    const focused = captureFocusedCell();
     try{ state = migrateState(JSON.parse(e.newValue)); }catch(err){ return; }
+    // 入力中だったセルは、届いたデータで上書きせず今の入力内容をそのまま残す（他者の変更の巻き戻り・文字消失を防ぐ）
+    if(focused && state.parts[focused.idx]){
+      state.parts[focused.idx][focused.field] = focused.value;
+    }
     if(procPicker.classList.contains('open')) closeProcPickerSilently();
     render();
+    if(focused) restoreFocusedCell(focused);
   });
 
   // ---- 工程エディタ（ポップオーバー） ----

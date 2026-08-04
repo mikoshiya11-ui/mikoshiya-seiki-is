@@ -625,7 +625,7 @@
       </div>
       <div class="mBody">
         <div style="font-size:12px;color:#7a879c;margin-bottom:14px;line-height:1.6;">
-          「⭐ ひな形に登録」した過去の案件から選ぶと、その内容を引き継いだ状態で新規作成フォームが開きます。社内No.・納期など新しい案件用に変わる項目だけ入力し直してください。
+          「⭐ ひな形に登録」した過去の案件から選ぶと、その内容を引き継いだ状態で新規作成フォームが開きます。社内No.・納期など新しい案件用に変わる項目だけ入力し直してください。ひな形側に作業票（部品一覧・工程ルート）が入力済みの場合は、それも新しい案件の作業票へコピーされます（工程の日付は空の状態から始まります）。
         </div>
         <div class="resultGrid" id="templateGrid"></div>
         <div class="emptyState" id="templateEmptyState" style="display:none;">ひな形として登録された案件がまだありません。案件の詳細画面（カードをクリック）から「⭐ ひな形に登録」で登録できます。</div>
@@ -677,6 +677,31 @@
   // ---- 作業票ともリンクする ----
   // 作業票側に既にその品番のデータがあれば、客先名・型式名・納期などをそちらにも反映する（作業票がまだ無ければ何もしない。
   // 作業票を初めて開く時はURLパラメータからこのレコードの内容が渡されて自動的に作られるため）
+  // ---- ひな形から新規作成した場合、作業票の部品・工程（ルート）も一緒に引き継ぐための一時変数。
+  // 「⭐ ひな形から作成」を選んだ時にだけ引き継ぎ元の品番を入れておき、保存が終わったら空に戻す。 ----
+  let templateSourceProductNo = null;
+  // ---- ひな形の作業票データ（部品一覧・各部品の工程ルート）を、新しく保存された案件の品番の下にコピーする。
+  // 日付・注記など「案件ごとに変わる部分」は空にし、部品名・材質・仕上寸法・工程コードなど「ひな形として繰り返し使う部分」だけ引き継ぐ。
+  // 個別日程表側のメモ・確定状態などはコピー対象に含めない（新しい案件はまっさらな日程から始める）。 ----
+  function copyBuhinPartsFromTemplate(fromProductNo, rec){
+    if(!fromProductNo || !rec.productNo) return;
+    const raw = localStorage.getItem('sakaeIS_buhinhyoMock_v1_' + fromProductNo);
+    if(!raw) return; // ひな形側にまだ作業票データが無ければ何もしない
+    let src;
+    try{ src = JSON.parse(raw); }catch(e){ return; }
+    const parts = (src.parts||[]).map(p=> Object.assign({}, p, {
+      id: uid(),
+      processes: (p.processes||[]).map(pr=> Object.assign({}, pr, { id: uid(), date:'', note:'' }))
+    }));
+    const bs = {
+      order: {
+        productNo: rec.productNo, orderNo: rec.orderNo||'', orderDate: rec.orderDate||'',
+        dueDate: rec.dueDate||'', customer: rec.customer||'', model: rec.modelName||'', assembly:'有'
+      },
+      parts: parts
+    };
+    localStorage.setItem('sakaeIS_buhinhyoMock_v1_' + rec.productNo, JSON.stringify(bs));
+  }
   function syncToBuhinState(rec){
     if(!rec.productNo) return;
     const key = 'sakaeIS_buhinhyoMock_v1_' + rec.productNo;
@@ -1172,7 +1197,7 @@
     newOverlay.style.display = 'flex';
     if(!isEdit) document.getElementById('f_orderNo').focus();
   }
-  function openNew(){ openForm(null); }
+  function openNew(){ templateSourceProductNo = null; openForm(null); }
   function closeNew(){ newOverlay.style.display = 'none'; formEditId = null; }
   function todayStr(){
     const d = new Date();
@@ -1298,7 +1323,11 @@
       rec.id = uid();
       rec.status = 'inprogress';
       records.unshift(rec);
+      if(templateSourceProductNo){
+        copyBuhinPartsFromTemplate(templateSourceProductNo, rec);
+      }
     }
+    templateSourceProductNo = null;
     saveRecords();
     syncToBuhinState(rec);
     closeNew();
@@ -1416,6 +1445,7 @@
     const rec = records.find(r=>r.id===currentDetailId);
     if(!rec) return;
     closeDetail();
+    templateSourceProductNo = null;
     openForm(rec);
   });
   toggleDone.addEventListener('change', ()=>{
@@ -1509,6 +1539,7 @@
       costSummary: stripDates(tpl.costSummary),
       designPlan: stripDates(tpl.designPlan)
     });
+    templateSourceProductNo = tpl.productNo || null;
     openForm(seed);
   }
 

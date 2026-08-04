@@ -366,6 +366,7 @@
         <button type="button" id="zoomResetBtn" title="標準の大きさに戻す">100%</button>
         <button type="button" id="zoomInBtn" title="計画表を拡大">＋</button>
       </div>
+      <button type="button" class="addMemoBtn" id="addPartBtn2" title="作業票に戻らず、この日程表から新しい部品を追加します">＋ 部品を追加</button>
       <button type="button" class="addMemoBtn" id="addMemoBtn">＋ メモを追加</button>
       <button type="button" class="printBtn" id="printBtn" title="A3サイズで印刷します（印刷前に表示期間・ズームを整えてください）">🖨 印刷する（A3）</button>
       <span style="font-size:12.5px; color:#a4adbc;">土日はグレー表示／バーの右端の位置が作業票の工程日付（終了・納期）になります（ドラッグで移動、右クリックで新規設置・編集・削除）／各日の中央の縦線が午前・午後の区切りです／付箋メモは自由な位置・サイズで配置できます（ハンドルをドラッグで移動、右下でリサイズ、クリックで編集、右クリックで削除）</span>
@@ -385,6 +386,7 @@
     <div class="footNote">
       元データ：個別日程表（例１）.xlsx「81970PMC №6」シート／実際のセル位置から工程日を再現し、準備／加工／仕上げの3行に集約<br>
       作業票の「個別日程表を作る」から開いた場合、作業票と工程データを直接共有しています（品番ごと）。バーの中央を動かすと日付が、両端をつまんで伸縮すると日数（作業期間）が、その場で作業票側に反映されます（開いている場合はリアルタイムに）。バーの新規作成・削除は作業票側の工程一覧にもそのまま反映されます。進捗チェックはこのページだけの保存です。<br>
+      「＋ 部品を追加」でこの画面から新しい部品を追加できます（作業票に戻らなくてよい）。追加した部品名は行の名前部分をクリックすればいつでも変更できます。工程の追加は、部品の行の空いている段を右クリック→「バーの設置」から行えます（作業票側にもそのまま追加されます）。<br>
       ※進捗チェック欄の担当者4名（テンチョー・コーダ・カツグくん・ケイリー）は現状すべての受注で固定表示です。案件ごとに担当者が変わるかは要確認。
     </div>
 
@@ -1317,7 +1319,8 @@
           + '<button type="button" class="rowBtn" data-role="rowinc" data-part="'+pIdx+'" title="工程の段を増やす（バーが重なる時に）">＋</button>'
           + '</div>'
         : '';
-      html += '<div class="ganttSideCell"><div class="pNo">'+esc(part.no)+'</div><div class="pName">'+esc(part.name)+'</div><div class="pQty">数量：'+esc(part.qty)+'</div>'+prefixLine+rowCtrl+'</div>';
+      const pNameAttrs = handoff ? ' data-role="editPartName" data-part="'+pIdx+'" title="クリックで部品名を変更" style="cursor:pointer;"' : '';
+      html += '<div class="ganttSideCell"><div class="pNo">'+esc(part.no)+'</div><div class="pName"'+pNameAttrs+'>'+esc(part.name||'（部品名未設定）')+'</div><div class="pQty">数量：'+esc(part.qty)+'</div>'+prefixLine+rowCtrl+'</div>';
       if(handoff) html += '<div class="ganttDatesCell">'+buildDateTagsHtml(part)+'</div>';
       html += '<div class="ganttRows">';
       const rowCount = partRowCount(pIdx);
@@ -1575,6 +1578,21 @@
 
   // ---- 工程の段を手動で増減（バーが重なって置きづらい部品だけ、その場で段を追加できるように） ----
   ganttInner.addEventListener('click', (e)=>{
+    const nameEl = e.target.closest('[data-role="editPartName"]');
+    if(nameEl){
+      if(!checkEditable()) return;
+      const pIdx = Number(nameEl.dataset.part);
+      const part = PARTS[pIdx];
+      const bs = part && buhinState.parts.find(p=>p.id===part.partId);
+      if(!bs) return;
+      const newName = window.prompt('部品名を変更', bs.name || '');
+      if(newName === null) return;
+      bs.name = newName.trim();
+      saveBuhinState();
+      refreshFromBuhin();
+      render();
+      return;
+    }
     const btn = e.target.closest('.rowBtn');
     if(!btn) return;
     const pIdx = Number(btn.dataset.part);
@@ -2095,6 +2113,36 @@
     render();
     const bodyEl = ganttInner.querySelector('.memoNote[data-memo-id="'+id+'"] [data-role="memoBody"]');
     if(bodyEl) bodyEl.focus();
+  });
+
+  // ---- この日程表から直接、新しい部品を作業票に追加する（今までは作業票に戻らないとできなかった）。
+  // 追加した部品は空の行としてすぐ下に表示され、その行を右クリック→「バーの設置」で工程を追加できる。 ----
+  document.getElementById('addPartBtn2').addEventListener('click', ()=>{
+    if(!handoff){
+      alert('品番が指定されていないため、ここでは部品を追加できません（作業票側から個別日程表を開いてください）。');
+      return;
+    }
+    if(!checkEditable()) return;
+    const name = window.prompt('新しい部品の部品名を入力してください（材質・仕上寸法などの詳細は後から作業票側でも入力できます）', '');
+    if(name === null) return; // キャンセル
+    buhinState.parts = buhinState.parts || [];
+    const nums = buhinState.parts.map(p=> parseInt(p.subNo, 10)).filter(n=> !isNaN(n));
+    const next = nums.length ? Math.max.apply(null, nums) + 1 : 0;
+    const nextSubNo = String(next).padStart(3,'0');
+    const newPart = {
+      id: uid(), subNo: nextSubNo, code:'', name: name.trim(), material:'', finishedSize:'',
+      heatTreatSpec:'', surfaceTreatSpec:'', qty:1, memo:'', processes:[]
+    };
+    buhinState.parts.push(newPart);
+    saveBuhinState();
+    refreshFromBuhin();
+    render();
+    showUndo('部品「'+(newPart.name||'(名称未設定)')+'」を追加しました', ()=>{
+      buhinState.parts = buhinState.parts.filter(p=> p.id !== newPart.id);
+      saveBuhinState();
+      refreshFromBuhin();
+      render();
+    });
   });
 
   let memoDrag = null; // { type:'move'|'resize'|'tail', id, startClientX, startClientY, orig:{x,y,w,h,tailX,tailY} }
