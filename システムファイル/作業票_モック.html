@@ -909,35 +909,44 @@
     ppPartIdx = null;
   }
   // ---- 他タブ・他端末からの反映（Supabase経由のリアルタイム同期含む）で部品一覧を再描画する際、
-  // 今まさに入力中のセルまで巻き込んで作り直してしまい、入力中の文字が消える不具合があった。
-  // 対策：入力中のセル（フォーカス中の.cellInput）があれば、①そのセルの値は今の入力内容を優先して保持し、
-  // 再描画後に②同じセルへフォーカスとカーソル位置を戻す。 ----
-  function captureFocusedCell(){
+  // 今まさに入力中のセルまで巻き込んで作り直してしまう問題があった。値だけ保持してもDOM要素そのものが
+  // 作り直されると、日本語入力（IME）は変換途中の文字がその瞬間に強制確定されてしまい、カーソル位置を
+  // 戻すだけでは防げない（一度壊れたIMEの変換セッションは元に戻せないため）。
+  // 対策：部品一覧のどこかのセルに入力中（フォーカス中）は再描画を一切行わず、届いたデータは保留しておく。
+  // セルからフォーカスが外れた（他のセルへ移動しただけでなく、部品一覧の外に出た）タイミングで、
+  // 保留していた内容をまとめて反映する。 ----
+  let pendingRemoteState = null;
+  let pendingConfirmChange = false;
+  function isEditingPartsCell(){
     const el = document.activeElement;
-    if(!el || !el.classList || !el.classList.contains('cellInput')) return null;
-    const tr = el.closest('tr[data-idx]');
-    if(!tr || !partsBody.contains(el)) return null;
-    return {
-      idx: Number(tr.dataset.idx),
-      field: el.dataset.field,
-      value: el.value,
-      selectionStart: (typeof el.selectionStart === 'number') ? el.selectionStart : null,
-      selectionEnd: (typeof el.selectionEnd === 'number') ? el.selectionEnd : null
-    };
+    return !!(el && el.classList && el.classList.contains('cellInput') && partsBody.contains(el));
   }
-  function restoreFocusedCell(info){
-    if(!info) return;
-    const sel = '.cellInput[data-field="'+info.field+'"]';
-    const tr = partsBody.querySelector('tr[data-idx="'+info.idx+'"]');
-    const el = tr ? tr.querySelector(sel) : null;
-    if(!el) return;
-    el.focus();
-    if(info.selectionStart != null && info.selectionEnd != null){
-      try{ el.setSelectionRange(info.selectionStart, info.selectionEnd); }catch(err){}
+  function applyPendingRemoteUpdates(){
+    if(isEditingPartsCell()) return; // 別のセルへ移動しただけで、まだ部品一覧を編集中なら適用しない
+    let changed = false;
+    if(pendingConfirmChange){
+      confirmState = loadConfirm();
+      pendingConfirmChange = false;
+      changed = true;
+    }
+    if(pendingRemoteState){
+      const raw = pendingRemoteState;
+      pendingRemoteState = null;
+      try{ state = migrateState(JSON.parse(raw)); changed = true; }catch(err){}
+    }
+    if(changed){
+      if(procPicker.classList.contains('open')) closeProcPickerSilently();
+      render();
     }
   }
+  partsBody.addEventListener('focusout', (e)=>{
+    if(!e.target.classList || !e.target.classList.contains('cellInput')) return;
+    // focusoutは次のフォーカス先が確定する前に発火するため、1tick待ってから判定する
+    setTimeout(applyPendingRemoteUpdates, 0);
+  });
   window.addEventListener('storage', (e)=>{
     if(e.key === CONFIRM_KEY){
+      if(isEditingPartsCell()){ pendingConfirmChange = true; return; }
       confirmState = loadConfirm();
       if(procPicker.classList.contains('open')) closeProcPickerSilently();
       render();
@@ -945,15 +954,10 @@
     }
     if(e.key !== storageKeyFor(urlProductNo)) return;
     if(e.newValue == null) return;
-    const focused = captureFocusedCell();
+    if(isEditingPartsCell()){ pendingRemoteState = e.newValue; return; }
     try{ state = migrateState(JSON.parse(e.newValue)); }catch(err){ return; }
-    // 入力中だったセルは、届いたデータで上書きせず今の入力内容をそのまま残す（他者の変更の巻き戻り・文字消失を防ぐ）
-    if(focused && state.parts[focused.idx]){
-      state.parts[focused.idx][focused.field] = focused.value;
-    }
     if(procPicker.classList.contains('open')) closeProcPickerSilently();
     render();
-    if(focused) restoreFocusedCell(focused);
   });
 
   // ---- 工程エディタ（ポップオーバー） ----
