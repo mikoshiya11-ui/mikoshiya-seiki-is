@@ -386,7 +386,7 @@
     <div class="footNote">
       元データ：個別日程表（例１）.xlsx「81970PMC №6」シート／実際のセル位置から工程日を再現し、準備／加工／仕上げの3行に集約<br>
       作業票の「個別日程表を作る」から開いた場合、作業票と工程データを直接共有しています（品番ごと）。バーの中央を動かすと日付が、両端をつまんで伸縮すると日数（作業期間）が、その場で作業票側に反映されます（開いている場合はリアルタイムに）。バーの新規作成・削除は作業票側の工程一覧にもそのまま反映されます。進捗チェックはこのページだけの保存です。<br>
-      「＋ 部品を追加」でこの画面から新しい部品を追加できます（作業票に戻らなくてよい）。追加した部品名は行の名前部分をクリックすればいつでも変更できます。工程の追加は、部品の行の空いている段を右クリック→「バーの設置」から行えます（作業票側にもそのまま追加されます）。<br>
+      「＋ 部品を追加」でこの画面から新しい部品を追加できます（作業票に戻らなくてよい）。追加した部品名は行の名前部分をクリックすればいつでも変更できます。工程の追加は、部品の行の空いている段を右クリック→「バーの設置」から行えます（作業票側にもそのまま追加されます）。左側の部品名などが並ぶ欄を右クリックすると、部品名・材質など全項目＋工程をまるごと複製した行をすぐ下に追加できます。<br>
       ※進捗チェック欄の担当者4名（テンチョー・コーダ・カツグくん・ケイリー）は現状すべての受注で固定表示です。案件ごとに担当者が変わるかは要確認。
     </div>
 
@@ -415,6 +415,10 @@
 
   <div class="barCtxMenu" id="memoCtxMenu">
     <button type="button" class="danger" id="ctxDeleteMemo">削除</button>
+  </div>
+
+  <div class="barCtxMenu" id="partRowCtxMenu">
+    <button type="button" id="ctxDuplicatePartRow">この行を複製（部品名〜工程まるごと）</button>
   </div>
 
   <div class="undoToast" id="undoToast">
@@ -1320,7 +1324,8 @@
           + '</div>'
         : '';
       const pNameAttrs = handoff ? ' data-role="editPartName" data-part="'+pIdx+'" title="クリックで部品名を変更" style="cursor:pointer;"' : '';
-      html += '<div class="ganttSideCell"><div class="pNo">'+esc(part.no)+'</div><div class="pName"'+pNameAttrs+'>'+esc(part.name||'（部品名未設定）')+'</div><div class="pQty">数量：'+esc(part.qty)+'</div>'+prefixLine+rowCtrl+'</div>';
+      const sideCellAttrs = handoff ? ' data-role="partSideCell" data-part="'+pIdx+'" title="右クリックでこの部品の行を複製"' : '';
+      html += '<div class="ganttSideCell"'+sideCellAttrs+'><div class="pNo">'+esc(part.no)+'</div><div class="pName"'+pNameAttrs+'>'+esc(part.name||'（部品名未設定）')+'</div><div class="pQty">数量：'+esc(part.qty)+'</div>'+prefixLine+rowCtrl+'</div>';
       if(handoff) html += '<div class="ganttDatesCell">'+buildDateTagsHtml(part)+'</div>';
       html += '<div class="ganttRows">';
       const rowCount = partRowCount(pIdx);
@@ -1690,7 +1695,65 @@
     barCtxMenu.classList.remove('open');
     ctxBarTarget = null;
   }
+  // ---- 部品行（左側の部品名などが並ぶ欄）の右クリックメニュー：行の複製 ----
+  const partRowCtxMenu = document.getElementById('partRowCtxMenu');
+  const ctxDuplicatePartRow = document.getElementById('ctxDuplicatePartRow');
+  let ctxPartRowIdx = null;
+  function openPartRowCtxMenu(x, y){
+    partRowCtxMenu.classList.add('open');
+    const menuW = 150;
+    let left = x, top = y;
+    if(left + menuW > window.innerWidth - 10) left = window.innerWidth - menuW - 10;
+    if(left < 10) left = 10;
+    partRowCtxMenu.style.left = left+'px';
+    partRowCtxMenu.style.top = top+'px';
+  }
+  function closePartRowCtxMenu(){
+    partRowCtxMenu.classList.remove('open');
+    ctxPartRowIdx = null;
+  }
+  document.addEventListener('click', (e)=>{
+    if(!partRowCtxMenu.classList.contains('open')) return;
+    if(partRowCtxMenu.contains(e.target)) return;
+    closePartRowCtxMenu();
+  });
+  window.addEventListener('scroll', closePartRowCtxMenu, true);
+  ctxDuplicatePartRow.addEventListener('click', ()=>{
+    if(ctxPartRowIdx === null) return;
+    closePartRowCtxMenu();
+    if(!checkEditable()) return;
+    const part = PARTS[ctxPartRowIdx];
+    const src = part && buhinState.parts.find(p=>p.id===part.partId);
+    if(!src) return;
+    const nums = buhinState.parts.map(p=> parseInt(p.subNo, 10)).filter(n=> !isNaN(n));
+    const next = nums.length ? Math.max.apply(null, nums) + 1 : 0;
+    const nextSubNo = String(next).padStart(3,'0');
+    const clone = Object.assign({}, src, {
+      id: uid(),
+      subNo: nextSubNo,
+      processes: (src.processes||[]).map(p=> Object.assign({}, p, { id: uid() }))
+    });
+    const srcIdx = buhinState.parts.indexOf(src);
+    buhinState.parts.splice(srcIdx + 1, 0, clone);
+    saveBuhinState();
+    refreshFromBuhin();
+    render();
+    showUndo('社内No'+(src.subNo||'')+'の行を複製しました', ()=>{
+      const idx2 = buhinState.parts.findIndex(p=>p.id===clone.id);
+      if(idx2>-1) buhinState.parts.splice(idx2,1);
+      saveBuhinState();
+      refreshFromBuhin();
+      render();
+    });
+  });
   ganttInner.addEventListener('contextmenu', (e)=>{
+    const sideCellEl = e.target.closest('[data-role="partSideCell"]');
+    if(sideCellEl){
+      e.preventDefault();
+      ctxPartRowIdx = Number(sideCellEl.dataset.part);
+      openPartRowCtxMenu(e.clientX, e.clientY);
+      return;
+    }
     const barEl = e.target.closest('[data-range]');
     if(barEl){
       e.preventDefault();
