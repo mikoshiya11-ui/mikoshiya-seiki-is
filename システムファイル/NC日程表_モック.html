@@ -249,7 +249,7 @@
 
     <div class="noteBar">
       NC日程表は他の工程日程表（EW／LA／MI）と違い、同じNC工程でも使用機械ごとにシート（ミ81／ミ51／ミ／タテ）が分かれています。機械の行×日付の列で、どのジョブがいつその機械に乗っているかを管理する形式です。<br>
-      4シートとも空の状態から始まります。作業票でNCの工程に日付が入ると、下の「未割当のNC工程」に自動で出てきます。「配置する」でどの機械の行に乗せるか選ぶとバーになり、バーを動かすと作業票側の日付も一緒に更新されます（🔗マーク付きのバーが作業票とリンク中のジョブです）。<br>
+      4シートとも空の状態から始まります。作業票でNCの工程に日付が入ると、下の「未割当のNC工程」に自動で出てきます。「配置する」でどの機械の行に乗せるか選ぶとバーになります（🔗マーク付きのバーが作業票とリンク中のジョブです）。ここでバーを動かしても、それはこのNC日程表だけの表示位置（現場での実際の割り振り）で、作業票・個別日程表の日付は変わりません（現場で機械の空き状況に合わせて自由に動かせるようにするためです）。<br>
       作業票と関係のない自由記述のジョブも、行の空いているところを右クリック→「バーの設置」で直接追加できます。バーの色は、作業票とリンク中のジョブは全て同じ色、リンク無しの自由記述バーは白／黄／緑から選べます。
     </div>
 
@@ -618,6 +618,17 @@
 
   // ---- 作業票とのリンク：全品番の作業票データ（sakaeIS_buhinhyoMock_v1_＜品番＞）を横断的に見て、NCの工程で日付が入っているものを集める ----
   // 作業票側の工程コードはNC1〜NC5をやめて共通の「NC」1つにしたが、旧データ（NC1〜NC5のまま保存されているもの）も引き続き拾えるようにする。
+  // ---- このNC日程表だけの「表示上の日程」の上書き（品番をまたぐデータなので、作業票側ではなくNC日程表だけで持つ）。
+  // 現場でバーを動かしてもここだけに保存され、作業票・個別日程表の日付（=正式な計画日程）は変更しない。
+  // 上書きが無い工程は、これまで通り作業票側の日付（proc.date）をそのまま使う。 ----
+  const DATE_OVERRIDE_KEY = 'sakaeIS_ncGanttMock_dateOverride_v1';
+  function loadDateOverrides(){
+    try{ const raw = localStorage.getItem(DATE_OVERRIDE_KEY); if(raw) return JSON.parse(raw); }catch(e){}
+    return {};
+  }
+  function saveDateOverrides(){ localStorage.setItem(DATE_OVERRIDE_KEY, JSON.stringify(dateOverrides)); }
+  let dateOverrides = loadDateOverrides(); // { [procId]: { date, ampm } }
+
   function scanAllBuhinNCJobs(){
     const jobs = [];
     for(let i=0;i<localStorage.length;i++){
@@ -629,10 +640,11 @@
       (bs.parts||[]).forEach(part=>{
         (part.processes||[]).forEach(proc=>{
           if(/^NC[1-5]?$/.test(proc.code) && proc.date){
+            const ov = dateOverrides[proc.id];
             jobs.push({
               productNo: bs.order.productNo || '', customer: bs.order.customer || '',
               partId: part.id, partName: part.name || '', subNo: part.subNo || '',
-              procId: proc.id, code: proc.code, date: proc.date, ampm: proc.ampm || 'AM', note: proc.note || '',
+              procId: proc.id, code: proc.code, date: ov ? ov.date : proc.date, ampm: ov ? ov.ampm : (proc.ampm || 'AM'), note: proc.note || '',
               days: proc.days || 3 // 個別日程表と同じ「半日単位のバー長さ」。ここでの意味は暦日数ではなく半日コマ数（個別日程表のバー幅と揃えるため）
             });
           }
@@ -640,20 +652,6 @@
       });
     }
     return jobs;
-  }
-  function writeBackProcessDate(productNo, procId, dateStr, ampm){
-    if(!productNo) return;
-    const key = 'sakaeIS_buhinhyoMock_v1_' + productNo;
-    let bs;
-    try{ bs = JSON.parse(localStorage.getItem(key)); }catch(e){ return; }
-    if(!bs) return;
-    let found = false;
-    (bs.parts||[]).forEach(part=>{
-      (part.processes||[]).forEach(proc=>{
-        if(proc.id === procId){ proc.date = dateStr; proc.ampm = ampm; found = true; }
-      });
-    });
-    if(found) localStorage.setItem(key, JSON.stringify(bs));
   }
 
   // ---- 機械への割り当て（品番をまたぐデータなので、作業票側ではなくNC日程表だけで持つ） ----
@@ -1409,7 +1407,9 @@
       const origAmpm = isPMUnit(origH.unitInDay)?'PM':'AM';
       const origAssign = rowChanged ? { sheet: currentCode, mIdx: Number(key.split('_')[0]), laneIdx: origRowIdx } : null;
 
-      writeBackProcessDate(productNo, procId, dateStr, newAmpm);
+      // このNC日程表だけの表示位置として保存する（作業票・個別日程表側のproc.dateは変更しない）
+      dateOverrides[procId] = { date: dateStr, ampm: newAmpm };
+      saveDateOverrides();
       if(rowChanged){
         assignments[procId] = { sheet: currentCode, mIdx: Number(key.split('_')[0]), laneIdx: curRow };
         saveAssignments();
@@ -1418,8 +1418,9 @@
       render();
       drag = null;
 
-      showUndo('日程を変更しました（'+dateStr.slice(5).replace('-','/')+' '+(newAmpm==='AM'?'午前':'午後')+'）', ()=>{
-        writeBackProcessDate(productNo, procId, origDateStr, origAmpm);
+      showUndo('日程を変更しました（'+dateStr.slice(5).replace('-','/')+' '+(newAmpm==='AM'?'午前':'午後')+'・このNC日程表だけの表示です）', ()=>{
+        dateOverrides[procId] = { date: origDateStr, ampm: origAmpm };
+        saveDateOverrides();
         if(origAssign){
           assignments[procId] = origAssign;
           saveAssignments();
@@ -1602,7 +1603,8 @@
   // ---- 他のタブ（作業票・別のNC日程表タブ）での変更をリアルタイムに反映 ----
   window.addEventListener('storage', (e)=>{
     if(!e.key) return;
-    if(e.key.indexOf('sakaeIS_buhinhyoMock_v1_')===0 || e.key===ASSIGN_KEY){
+    if(e.key.indexOf('sakaeIS_buhinhyoMock_v1_')===0 || e.key===ASSIGN_KEY || e.key===DATE_OVERRIDE_KEY){
+      if(e.key===DATE_OVERRIDE_KEY){ try{ dateOverrides = JSON.parse(e.newValue||'{}'); }catch(err){} }
       refreshBars();
       render();
     }

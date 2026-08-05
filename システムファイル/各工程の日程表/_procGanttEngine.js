@@ -277,6 +277,17 @@ window.ProcGantt = (function(){
     function saveFreeRowCount(){ localStorage.setItem(FREE_ROWCOUNT_KEY, String(freeRowCount)); }
     let freeRowCount = loadFreeRowCount();
 
+    // ---- この日程表（このコードのページ）だけの「表示上の日程」の上書き。現場でバーを動かしても
+    // ここだけに保存され、作業票・個別日程表の日付（＝正式な計画日程）は変更しない。
+    // 上書きが無い工程は、これまで通り作業票側の日付（proc.date）をそのまま使う。 ----
+    const DATE_OVERRIDE_KEY = STORAGE_PREFIX + '_dateOverride';
+    function loadDateOverrides(){
+      try{ const raw = localStorage.getItem(DATE_OVERRIDE_KEY); if(raw) return JSON.parse(raw); }catch(e){}
+      return {};
+    }
+    function saveDateOverrides(){ localStorage.setItem(DATE_OVERRIDE_KEY, JSON.stringify(dateOverrides)); }
+    let dateOverrides = loadDateOverrides(); // { [procId]: { date, ampm, days } }
+
     // ---- 部品表を横断スキャンして、このコードが付いた工程をジョブとして集める ----
     function scanJobs(){
       const jobs = [];
@@ -301,11 +312,15 @@ window.ProcGantt = (function(){
               if(pos > 0) prevCode = dated[pos-1].code;
               if(pos !== -1 && pos < dated.length-1){ nextCode = dated[pos+1].code; deadline = dated[pos+1].date; }
             }
+            const ov = dateOverrides[proc.id];
             jobs.push({
               productNo: bs.order.productNo||'', orderNo: bs.order.orderNo||'', customer: bs.order.customer||'',
               model: bs.order.model||'', orderDueDate: bs.order.dueDate||'',
               partId: part.id, partName: part.name||'', qty: part.qty||'',
-              procId: proc.id, code: proc.code, date: proc.date||'', ampm: proc.ampm||'AM', days: proc.days||3,
+              procId: proc.id, code: proc.code,
+              date: (ov ? ov.date : proc.date) || '',
+              ampm: (ov ? ov.ampm : proc.ampm) || 'AM',
+              days: (ov && ov.days != null) ? ov.days : (proc.days || 3),
               prevCode, nextCode, deadline
             });
           });
@@ -313,25 +328,6 @@ window.ProcGantt = (function(){
       }
       return jobs;
     }
-    function writeBackProcessDate(productNo, procId, dateStr, ampm, days){
-      if(!productNo) return;
-      const key = 'sakaeIS_buhinhyoMock_v1_' + productNo;
-      let bs;
-      try{ bs = JSON.parse(localStorage.getItem(key)); }catch(e){ return; }
-      if(!bs) return;
-      let found = false;
-      (bs.parts||[]).forEach(part=>{
-        (part.processes||[]).forEach(proc=>{
-          if(proc.id === procId){
-            proc.date = dateStr; proc.ampm = ampm;
-            if(days !== undefined) proc.days = days;
-            found = true;
-          }
-        });
-      });
-      if(found) localStorage.setItem(key, JSON.stringify(bs));
-    }
-
     // ---- 工程そのものを削除（日付をクリアするだけでなく、部品表からその工程を完全に取り除く）。
     // 受注連絡書から案件ごと削除された後などに「日付未設定」欄に残り続けてしまう工程を、ここから消せるようにする ----
     function deleteProcess(productNo, procId){
@@ -692,7 +688,9 @@ window.ProcGantt = (function(){
         const dateInput = row.querySelector('[data-role="ui-date"]');
         const ampmSelect = row.querySelector('[data-role="ui-ampm"]');
         if(!dateInput.value){ alert('日付を選んでください。'); return; }
-        writeBackProcessDate(productNo, procId, dateInput.value, ampmSelect.value);
+        // ここで決めた日程はこの日程表だけの表示（作業票・個別日程表の日程は変更しない）
+        dateOverrides[procId] = { date: dateInput.value, ampm: ampmSelect.value };
+        saveDateOverrides();
         render();
         return;
       }
@@ -1019,13 +1017,16 @@ window.ProcGantt = (function(){
       if(!procId) return;
       const job = jobs.find(j=>j.procId===procId);
       if(!job) return;
-      if(!window.confirm('この工程の日程を削除します。作業票・個別日程表など他の画面のこの工程の日程も一緒に消えます。よろしいですか？')) return;
-      const snapshot = { date: job.date, ampm: job.ampm, days: job.days };
+      if(!window.confirm('この工程の日程（この日程表での表示位置）を削除します。作業票・個別日程表の日程は変わりません。よろしいですか？')) return;
+      const snapshot = dateOverrides[procId] ? Object.assign({}, dateOverrides[procId]) : null;
       const productNo = job.productNo;
-      writeBackProcessDate(productNo, procId, '', 'AM');
+      dateOverrides[procId] = { date: '', ampm: 'AM' };
+      saveDateOverrides();
       render();
       showUndo('工程の日程を削除しました', ()=>{
-        writeBackProcessDate(productNo, procId, snapshot.date, snapshot.ampm, snapshot.days);
+        if(snapshot) dateOverrides[procId] = snapshot;
+        else delete dateOverrides[procId];
+        saveDateOverrides();
         render();
       });
     });
@@ -1081,7 +1082,8 @@ window.ProcGantt = (function(){
         const dt = h.date;
         const dateStr = dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
         const days = drag.workingEnd - drag.workingStart + 1;
-        writeBackProcessDate(drag.job.productNo, drag.procId, dateStr, h.isPM?'PM':'AM', days);
+        dateOverrides[drag.procId] = { date: dateStr, ampm: h.isPM?'PM':'AM', days: days };
+        saveDateOverrides();
         render();
       }
       drag = null;
@@ -1412,6 +1414,10 @@ window.ProcGantt = (function(){
         freeBars = loadFreeBars();
         freeRowCount = loadFreeRowCount();
         renderFree();
+      }
+      if(e.key===DATE_OVERRIDE_KEY){
+        dateOverrides = loadDateOverrides();
+        render();
       }
     });
   }
