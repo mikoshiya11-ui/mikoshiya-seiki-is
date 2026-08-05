@@ -683,15 +683,44 @@
   // ---- ひな形の作業票データ（部品一覧・各部品の工程ルート）を、新しく保存された案件の品番の下にコピーする。
   // 日付・注記など「案件ごとに変わる部分」は空にし、部品名・材質・仕上寸法・工程コードなど「ひな形として繰り返し使う部分」だけ引き継ぐ。
   // 個別日程表側のメモ・確定状態などはコピー対象に含めない（新しい案件はまっさらな日程から始める）。 ----
+  // ---- YYYY-MM-DD文字列⇔Dateの相互変換（ひな形の日程シフト計算用） ----
+  function parseYmd(s){
+    if(!s) return null;
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+    if(!m) return null;
+    const d = new Date(Number(m[1]), Number(m[2])-1, Number(m[3]));
+    return isNaN(d) ? null : d;
+  }
+  function formatYmd(d){
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
   function copyBuhinPartsFromTemplate(fromProductNo, rec){
     if(!fromProductNo || !rec.productNo) return;
     const raw = localStorage.getItem('sakaeIS_buhinhyoMock_v1_' + fromProductNo);
     if(!raw) return; // ひな形側にまだ作業票データが無ければ何もしない
     let src;
     try{ src = JSON.parse(raw); }catch(e){ return; }
+    // note（「ウラ」「オモテ」等の備考）・hours（工数）・days（バー幅の日数）は工程ルートの一部なのでそのまま引き継ぐ。
+    // date（実際のカレンダー日付）は、そのままコピーすると個別日程表のガントバーが真っ白になってしまう
+    // （工程に日付が無いとバーとして表示されない仕様のため）。かといって単純に全部空にすると工程間の間隔が
+    // わからなくなるので、一番早い工程の日付が「今日」になるよう全工程を同じ日数だけ後ろ倒し（または前倒し）にして、
+    // 工程どうしの間隔（何日後にNC、何日後に仕上げ…）はそのまま保つ。
+    let earliest = null;
+    (src.parts||[]).forEach(p=> (p.processes||[]).forEach(pr=>{
+      const d = parseYmd(pr.date);
+      if(d && (!earliest || d < earliest)) earliest = d;
+    }));
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const shiftMs = earliest ? (today - earliest) : 0;
+    function shiftedDate(dateStr){
+      const d = parseYmd(dateStr);
+      if(!d) return dateStr || '';
+      return formatYmd(new Date(d.getTime() + shiftMs));
+    }
     const parts = (src.parts||[]).map(p=> Object.assign({}, p, {
       id: uid(),
-      processes: (p.processes||[]).map(pr=> Object.assign({}, pr, { id: uid(), date:'', note:'' }))
+      processes: (p.processes||[]).map(pr=> Object.assign({}, pr, { id: uid(), date: shiftedDate(pr.date) }))
     }));
     const bs = {
       order: {
