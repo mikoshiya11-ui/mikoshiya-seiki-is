@@ -274,6 +274,7 @@
   </div>
 
   <div class="rowCtxMenu" id="rowCtxMenu">
+    <button type="button" id="ctxDuplicateRow">この行を複製（新しい行として追加）</button>
     <button type="button" id="ctxCopyProc">この行をコピー（部品名〜工程）</button>
     <button type="button" id="ctxCopyProcOnly">工程だけコピー</button>
     <button type="button" id="ctxPasteProc">貼り付け</button>
@@ -791,6 +792,32 @@
     closeRowCtxMenu();
   });
   window.addEventListener('scroll', closeRowCtxMenu, true);
+  // ---- この行を複製：部品名・材質など全項目＋工程をまるごと新しい行としてすぐ下に追加する
+  // （コピー→別の行に貼り付け、のような2手順を踏まなくても、似た部品を素早く増やせるように） ----
+  const ctxDuplicateRow = document.getElementById('ctxDuplicateRow');
+  ctxDuplicateRow.addEventListener('click', ()=>{
+    if(ctxMenuPartIdx === null) return;
+    if(!checkEditable()){ closeRowCtxMenu(); return; }
+    const src = state.parts[ctxMenuPartIdx];
+    const nums = state.parts.map(p=> parseInt(p.subNo, 10)).filter(n=> !isNaN(n));
+    const next = nums.length ? Math.max.apply(null, nums) + 1 : 0;
+    const nextSubNo = String(next).padStart(3,'0');
+    const clone = Object.assign({}, src, {
+      id: uid(),
+      subNo: nextSubNo,
+      processes: (src.processes||[]).map(p=> Object.assign({}, p, { id: uid() }))
+    });
+    state.parts.splice(ctxMenuPartIdx + 1, 0, clone);
+    save();
+    render();
+    closeRowCtxMenu();
+    showUndo('社内No'+(src.subNo||ctxMenuPartIdx)+'の行を複製しました', ()=>{
+      const idx2 = state.parts.findIndex(p=>p.id===clone.id);
+      if(idx2>-1) state.parts.splice(idx2,1);
+      save();
+      render();
+    });
+  });
   ctxCopyProc.addEventListener('click', ()=>{
     if(ctxMenuPartIdx === null) return;
     const part = state.parts[ctxMenuPartIdx];
