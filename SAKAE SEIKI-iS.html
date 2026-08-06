@@ -587,6 +587,7 @@
       </div>
       <div class="mFoot">
         <button class="btn ghost" id="printNewBtn" type="button" style="margin-right:auto;">🖨 印刷</button>
+        <button class="btn ghost" id="backToSagyohyoBtn" type="button" style="display:none;">← 作業票に戻る</button>
         <button class="btn ghost" id="cancelNewBtn" type="button">キャンセル</button>
         <button class="btn primary" id="saveNewBtn" type="button">この内容で登録</button>
       </div>
@@ -609,7 +610,7 @@
           </label>
         </div>
         <div style="display:flex; gap:10px;">
-          <button class="btn ghost" id="viewFormBtn" type="button">受注連絡書で表示</button>
+          <button class="btn ghost" id="viewFormBtn" type="button">📄 受注に関する連絡書を編集</button>
           <button class="btn ghost" id="closeDetailBtn2" type="button">閉じる</button>
         </div>
       </div>
@@ -731,6 +732,16 @@
     };
     localStorage.setItem('sakaeIS_buhinhyoMock_v1_' + rec.productNo, JSON.stringify(bs));
   }
+  // ---- 受注に関する連絡書だけにある項目（作業票には無い項目）。実務フロー変更に伴い、
+  // これらも品番ごとの作業票データ（sakaeIS_buhinhyoMock_v1_品番）の中のorderNotice領域に
+  // まとめて保存し、新しい独立キーを増やさないようにする。records[]側にも従来通り持たせておき、
+  // 一覧表示・CSV書き出し・印刷などの既存コードはそのまま動かす（bs.orderNoticeは同じ内容を
+  // 保持する「正本」、records[]は一覧表示用のインデックス兼キャッシュという位置づけ）。 ----
+  const NOTICE_FIELD_KEYS = [
+    'tCode','itemName','category','subject','shikyu','qty','komeSu','amount','extraDocs',
+    'infoForecast','drafter','mfgResp','salesResp','designResp','issueDate1','issueDate2','note',
+    'status2','designSchedule','designPlan','costSummary','registration'
+  ];
   function syncToBuhinState(rec){
     if(!rec.productNo) return;
     const key = 'sakaeIS_buhinhyoMock_v1_' + rec.productNo;
@@ -746,7 +757,36 @@
     bs.order.dueDate = rec.dueDate || '';
     bs.order.orderDate = rec.orderDate || '';
     bs.order.orderNo = rec.orderNo || '';
+    bs.orderNotice = bs.orderNotice || {};
+    NOTICE_FIELD_KEYS.forEach(k=>{ bs.orderNotice[k] = rec[k]; });
     localStorage.setItem(key, JSON.stringify(bs));
+  }
+  // ---- 作業票データ（bs.order／bs.orderNotice）を、案件カード側のrecに上書きマージして返す。
+  // 作業票側で客先・型式・納期などが更新されていた場合、こちらを開いた時に必ず最新値が見えるようにする ----
+  function loadBuhinState(productNo){
+    if(!productNo) return null;
+    try{
+      const raw = localStorage.getItem('sakaeIS_buhinhyoMock_v1_' + productNo);
+      if(raw) return JSON.parse(raw);
+    }catch(e){}
+    return null;
+  }
+  function mergedRecForForm(rec){
+    if(!rec) return rec;
+    const bs = loadBuhinState(rec.productNo);
+    if(!bs) return rec;
+    const merged = Object.assign({}, rec);
+    if(bs.order){
+      merged.orderNo = bs.order.orderNo || rec.orderNo || '';
+      merged.customer = bs.order.customer || rec.customer || '';
+      merged.modelName = bs.order.model || rec.modelName || '';
+      merged.orderDate = bs.order.orderDate || rec.orderDate || '';
+      merged.dueDate = bs.order.dueDate || rec.dueDate || '';
+    }
+    if(bs.orderNotice){
+      NOTICE_FIELD_KEYS.forEach(k=>{ if(bs.orderNotice[k] !== undefined) merged[k] = bs.orderNotice[k]; });
+    }
+    return merged;
   }
 
   // ---- 作業票など、別タブでの受注連絡書一覧データの変更をリアルタイムに反映する ----
@@ -841,7 +881,7 @@
       return (b.dueDate||'').localeCompare(a.dueDate||'');
     });
 
-    resultsMeta.textContent = '受注連絡書カード ' + list.length + '件';
+    resultsMeta.textContent = '受注に関する連絡書カード ' + list.length + '件';
     document.getElementById('exportCsvBtn').style.display = (filterMode==='done') ? 'inline-block' : 'none';
     if(list.length===0){
       resultGrid.innerHTML = '';
@@ -1005,7 +1045,7 @@
       try{ data = JSON.parse(reader.result); }
       catch(err){ alert('このファイルはJSONとして読み込めませんでした。'); return; }
       if(!data || !Array.isArray(data.records)){
-        alert('このファイルは書き出し形式と違うようです（受注連絡書のデータが見つかりません）。');
+        alert('このファイルは書き出し形式と違うようです（受注に関する連絡書のデータが見つかりません）。');
         return;
       }
       const importCount = data.records.length;
@@ -1204,6 +1244,8 @@
     // rec.idが無い（ひな形から作成した場合の仮データなど）は「新規」扱いにする
     const isEdit = !!(rec && rec.id);
     formEditId = isEdit ? rec.id : null;
+    // 作業票側で客先・型式・納期などが更新されている場合があるため、開く直前に必ず最新値へマージする
+    if(isEdit) rec = mergedRecForForm(rec);
     const reg = (rec && rec.registration) || {};
     FORM_FIELD_IDS.forEach(id=>{ document.getElementById(id).value = rec ? (rec[FORM_FIELD_KEYS[id]] || '') : ''; });
     Object.keys(REG_FIELD_KEYS).forEach(id=>{ document.getElementById(id).value = rec ? (reg[REG_FIELD_KEYS[id]] || '') : ''; });
@@ -1223,6 +1265,16 @@
     recalcTotals();
     document.getElementById('newModalTitle').textContent = isEdit ? '受注に関する連絡書' : '受注に関する連絡書　新規作成';
     document.getElementById('saveNewBtn').textContent = isEdit ? 'この内容で更新' : 'この内容で登録';
+    const backBtn = document.getElementById('backToSagyohyoBtn');
+    if(backBtn){
+      if(isEdit && rec && rec.productNo){
+        backBtn.style.display = '';
+        backBtn.dataset.productNo = rec.productNo;
+      }else{
+        backBtn.style.display = 'none';
+        delete backBtn.dataset.productNo;
+      }
+    }
     newOverlay.style.display = 'flex';
     if(!isEdit) document.getElementById('f_orderNo').focus();
   }
@@ -1233,7 +1285,26 @@
     return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   }
 
-  document.getElementById('newBtn').addEventListener('click', openNew);
+  // ---- 新規作成：実務では受注に関する連絡書より先に作業票から作ることが多いため、
+  // ここでは社内No.（＝品番・全ページの紐付けキー）だけを確認して、すぐに作業票を新規品番で開く。
+  // 受注に関する連絡書の詳しい項目は、作業票の上部の「受注に関する連絡書を開く」ボタンから後で入力する。 ----
+  function startNewCase(){
+    const input = window.prompt('新しい案件の社内No.を入力してください（後から変更できます）');
+    if(input == null) return; // キャンセル
+    const orderNo = input.trim();
+    if(!orderNo){
+      alert('社内No.を入力してください。');
+      return;
+    }
+    const dupRec = records.find(r=> r.orderNo === orderNo);
+    if(dupRec){
+      alert('社内No.「'+orderNo+'」は既に別の案件（'+(dupRec.modelName||dupRec.itemName||'名称未設定')+'）で使われています。別の番号にしてください。');
+      return;
+    }
+    location.href = 'システムファイル/作業票_モック.html?productNo='+encodeURIComponent(orderNo)+'&orderNo='+encodeURIComponent(orderNo);
+  }
+
+  document.getElementById('newBtn').addEventListener('click', startNewCase);
   document.getElementById('closeNewBtn').addEventListener('click', closeNew);
   document.getElementById('cancelNewBtn').addEventListener('click', closeNew);
   // ---- 背景クリックでの自動クローズは廃止 ----
@@ -1283,19 +1354,22 @@
     }).filter(r=> r.from || r.to);
   }
 
-  document.getElementById('saveNewBtn').addEventListener('click', ()=>{
+  // ---- 入力内容の検証・保存本体（登録ボタン・「作業票に戻る」ボタンの両方から使う）。
+  // 保存できなければnullを返す（呼び出し側は画面を閉じたり遷移したりせず、その場でとどまる）。 ----
+  function persistOrderForm(){
     const orderNo = document.getElementById('f_orderNo').value.trim();
     const customer = document.getElementById('f_customer').value.trim();
     if(!orderNo || !customer){
       alert('社内No.と客先名は必須です。');
-      return;
+      return null;
     }
     // 社内No.は全ページの紐付けキーとして使われるため、他の案件と重複していないか確認する（編集中の自分自身は除く）
     const dupRec = records.find(r=> r.orderNo === orderNo && r.id !== formEditId);
     if(dupRec){
       alert('社内No.「'+orderNo+'」は既に別の案件（'+(dupRec.modelName||dupRec.itemName||'名称未設定')+'）で使われています。別の番号にしてください。');
-      return;
+      return null;
     }
+    const wasNew = !formEditId;
     const rec = {
       status2: getRadio('f_status'),
       tCode: document.getElementById('f_tCode').value.trim(),
@@ -1359,11 +1433,40 @@
     templateSourceProductNo = null;
     saveRecords();
     syncToBuhinState(rec);
+    rec._wasNew = wasNew;
+    return rec;
+  }
+
+  document.getElementById('saveNewBtn').addEventListener('click', ()=>{
+    const rec = persistOrderForm();
+    if(!rec) return;
+    const wasNew = rec._wasNew;
+    delete rec._wasNew;
     closeNew();
     searchInput.value = '';
     filterMode = 'all';
     quickLinks.querySelectorAll('button').forEach(b=>b.classList.toggle('active', b.dataset.filter==='all'));
     render();
+    if(wasNew){
+      // 新規登録した直後は、受注に関する連絡書ではなく作業票を主画面として開く（実務では作業票を先に作るため）
+      location.href = 'システムファイル/作業票_モック.html?productNo='+encodeURIComponent(rec.productNo);
+    }
+  });
+
+  document.getElementById('backToSagyohyoBtn').addEventListener('click', async ()=>{
+    const btn = document.getElementById('backToSagyohyoBtn');
+    const productNoBefore = btn.dataset.productNo;
+    const rec = persistOrderForm();
+    if(!rec) return;
+    delete rec._wasNew;
+    closeNew();
+    render();
+    if(window.sakaeSyncFlush){
+      try{ await window.sakaeSyncFlush(); }catch(e){}
+    }
+    // 社内No.（＝品番）をこの画面で変更していた場合は、保存後の新しい品番の作業票へ戻る
+    // （旧品番はmigrateProductData()で新品番へデータごと引き継がれ済みのため）
+    location.href = 'システムファイル/作業票_モック.html?productNo='+encodeURIComponent(rec.productNo || productNoBefore);
   });
 
   // ---- 詳細パネル ----
@@ -1389,8 +1492,9 @@
   }
 
   function openDetail(id){
-    const rec = records.find(r=>r.id===id);
+    let rec = records.find(r=>r.id===id);
     if(!rec) return;
+    rec = mergedRecForForm(rec); // 作業票側の最新値（客先・型式・納期など）を表示に反映
     currentDetailId = id;
     detailTitle.textContent = rec.orderNo + '　案件詳細';
     const rows = [
@@ -1459,8 +1563,10 @@
       +'&modelName='+encodeURIComponent(rec.modelName||'')
       +'&orderDate='+encodeURIComponent(rec.orderDate||'')
       +'&dueDate='+encodeURIComponent(rec.dueDate||'');
-    html += '<div class="detailLinkRow"><a class="btn primary" href="'+partsUrl+'" target="_blank">作業票を見る／作成する →</a></div>';
-    html += '<div class="noteBox">客先名・型式名・納期などは作業票（さらに個別日程表）とリンクしています。どちらで編集しても反映されます。作業票・受注(支給)一覧との連携は次のステップで実装予定。</div>';
+    const buhinExists = !!loadBuhinState(rec.productNo);
+    const partsLabel = buhinExists ? '作業票を開く →' : '作業票を作成する →';
+    html += '<div class="detailLinkRow"><a class="btn primary" href="'+partsUrl+'" target="_blank">'+partsLabel+'</a></div>';
+    html += '<div class="noteBox">実務では作業票（さらに個別日程表）を先に作成し、そこで入力した客先名・型式名・納期などがこの受注に関する連絡書にも自動反映されます。どちらで編集しても、もう片方に反映されます。</div>';
     detailBody.innerHTML = html;
     toggleDone.checked = rec.status === 'done';
     document.getElementById('templateToggleBtn').textContent = rec.isTemplate ? '★ ひな形から外す' : '⭐ ひな形に登録';
@@ -1572,8 +1678,69 @@
     openForm(seed);
   }
 
+  // ---- 作業票の「受注に関する連絡書を開く」ボタンから ?view=orderNotice&productNo=品番 で
+  // 直接この画面に来た場合、TOP画面を経由して手動検索しなくても、該当案件の連絡書がすぐ開くようにする ----
+  function openOrderNoticeDeepLink(){
+    const p = new URLSearchParams(location.search);
+    if(p.get('view') !== 'orderNotice') return;
+    const productNo = p.get('productNo') || '';
+    if(!productNo){ alert('品番が指定されていないため、受注に関する連絡書を開けませんでした。'); return; }
+    let rec = records.find(r=>r.productNo===productNo);
+    if(!rec){
+      // 通常は作業票を経由するとrecordsに自動でカードが作られているはずだが、
+      // 万一無い場合は作業票データ（bs.order）から最低限の内容でその場に補って開く
+      const bs = loadBuhinState(productNo);
+      if(!bs || !bs.order){
+        alert('品番「'+productNo+'」の案件が見つかりませんでした。');
+        return;
+      }
+      rec = {
+        id: uid(), productNo: productNo, orderNo: bs.order.orderNo||'', customer: bs.order.customer||'',
+        modelName: bs.order.model||'', itemName:'', category:'型', subject:'新作',
+        orderDate: bs.order.orderDate||'', dueDate: bs.order.dueDate||'', qty:'',
+        amount:'', manhour:'', drafter:'', note:'作業票から自動作成', status:'inprogress'
+      };
+      records.unshift(rec);
+      saveRecords();
+      render();
+    }
+    templateSourceProductNo = null;
+    openForm(rec);
+  }
+
+  // ---- 別タブ（作業票・受注に関する連絡書）での品番データの変更を、TOP画面のカード表示にも
+  // 即座に反映する（受注連絡書一覧データ自体の変更は既存のstorageリスナーで対応済み）----
+  function syncRecordFromBuhinOrder(o){
+    if(!o || !o.productNo) return;
+    const idx = records.findIndex(r=>r.productNo === o.productNo);
+    if(idx > -1){
+      const r = records[idx];
+      const changed = r.customer!==(o.customer||'') || r.modelName!==(o.model||'') || r.dueDate!==(o.dueDate||'')
+        || r.orderDate!==(o.orderDate||'') || r.orderNo!==(o.orderNo||'');
+      if(!changed) return;
+      r.customer = o.customer||''; r.modelName = o.model||''; r.dueDate = o.dueDate||'';
+      r.orderDate = o.orderDate||''; r.orderNo = o.orderNo||'';
+    }else{
+      records.unshift({
+        id: uid(), productNo: o.productNo, orderNo: o.orderNo||'', customer: o.customer||'',
+        modelName: o.model||'', itemName:'', category:'型', subject:'新作',
+        orderDate: o.orderDate||'', dueDate: o.dueDate||'', qty:'',
+        amount:'', manhour:'', drafter:'', note:'作業票から自動作成', status:'inprogress'
+      });
+    }
+    saveRecords();
+    render();
+  }
+  window.addEventListener('storage', (e)=>{
+    if(!e.key || e.key.indexOf('sakaeIS_buhinhyoMock_v1_')!==0 || e.newValue == null) return;
+    let bs;
+    try{ bs = JSON.parse(e.newValue); }catch(err){ return; }
+    if(bs && bs.order) syncRecordFromBuhinOrder(bs.order);
+  });
+
   render();
   renderLastUpdated();
+  openOrderNoticeDeepLink();
 })();
 </script>
 </body>

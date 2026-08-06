@@ -73,11 +73,30 @@
   let sb = null;
   let applyingRemoteUpdate = false; // 受信した更新をlocalStorageへ書き込んでいる最中は、push処理を発火させないためのフラグ
   const pushTimers = {}; // キーごとのデバウンス用タイマー
+  const pendingActions = {}; // キーごとの「まだSupabaseに送っていない処理」（flush用に、タイマーとは別に本体を持っておく）
   const PUSH_DEBOUNCE_MS = 500;
 
   function isSyncKey(key){
     return typeof key === 'string' && key.indexOf(KEY_PREFIX) === 0;
   }
+
+  // ---- ページ遷移などの直前に、まだデバウンス待ちのSupabase送信をすべて即時実行する。
+  // 500msのデバウンスを待たずにページが破棄されると、直前の変更がSupabase側（＝他の端末）に届かないまま
+  // 消えてしまうことがあるため、「作業票⇄受注に関する連絡書」など画面をまたぐ主要な遷移の直前に呼び出す想定。
+  // 対象キーが無ければ何もせず即座に解決する。個々の送信が失敗しても他のキーの送信は続行する。 ----
+  window.sakaeSyncFlush = async function(){
+    const keys = Object.keys(pendingActions);
+    if(!keys.length) return;
+    const jobs = keys.map(k=>{
+      const fn = pendingActions[k];
+      if(pushTimers[k]){ clearTimeout(pushTimers[k]); delete pushTimers[k]; }
+      delete pendingActions[k];
+      if(!fn) return Promise.resolve();
+      try{ return Promise.resolve(fn()).catch(e=>{ console.warn('[sakaeSync] flush失敗:', k, e); }); }
+      catch(e){ console.warn('[sakaeSync] flush失敗:', k, e); return Promise.resolve(); }
+    });
+    await Promise.all(jobs);
+  };
 
   // ---- localStorageへの書き込み・削除を乗っ取り、対象キーならSupabaseにも送る ----
   // （確定解除・残品表の削除などlocalStorage.removeItem()を使う操作も、ここでフックしないと
@@ -101,16 +120,19 @@
 
   function schedulePush(key, value){
     if(pushTimers[key]) clearTimeout(pushTimers[key]);
+    pendingActions[key] = ()=> pushKey(key, value);
     pushTimers[key] = setTimeout(()=> pushKey(key, value), PUSH_DEBOUNCE_MS);
   }
 
   function scheduleDelete(key){
     if(pushTimers[key]) clearTimeout(pushTimers[key]);
+    pendingActions[key] = ()=> deleteKey(key);
     pushTimers[key] = setTimeout(()=> deleteKey(key), PUSH_DEBOUNCE_MS);
   }
 
   async function pushKey(key, value){
     delete pushTimers[key];
+    delete pendingActions[key];
     let parsed;
     try{ parsed = JSON.parse(value); }catch(e){ parsed = value; } // 値がJSONでない場合も念のためそのまま送る
     try{
@@ -123,6 +145,7 @@
 
   async function deleteKey(key){
     delete pushTimers[key];
+    delete pendingActions[key];
     try{
       await sb.from('kv_store').delete().eq('key', key);
     }catch(e){
