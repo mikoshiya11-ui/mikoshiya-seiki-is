@@ -96,6 +96,9 @@
   .fieldRow input#employeeNo{ width:90px; }
   .fieldRow input#dateInput{ width:150px; }
   .fieldRow select#defectFlag{ width:90px; }
+  .fieldRow input#equipmentInput{ width:110px; }
+  .fieldRow input#otherInput{ width:200px; }
+  .fieldRow select#completionSel{ width:100px; }
   .fieldRow .commitBtn{
     border:none; background:#e67e22; color:#fff; font-size:13px; font-weight:700; padding:9px 20px;
     border-radius:8px; cursor:pointer; font-family:inherit; height:37px;
@@ -113,7 +116,11 @@
   .listHead .lTitle{ font-size:12.5px; font-weight:700; color:#5b6b84; }
   .listHead .lCount{ font-size:12px; color:#a4adbc; }
   .listHead input#filterDate{
+    border:1.5px solid #dfe4ec; border-radius:7px; padding:6px 10px; font-size:12px; font-family:inherit;
+  }
+  .listHead select#filterEmployee{
     margin-left:auto; border:1.5px solid #dfe4ec; border-radius:7px; padding:6px 10px; font-size:12px; font-family:inherit;
+    color:#1a2233;
   }
   table.logTable{ width:100%; border-collapse:collapse; }
   table.logTable th{
@@ -146,7 +153,8 @@
   <div class="wrap">
 
     <div class="noteBar">
-      作業票に印刷したバーコード（品番・部品・工程）を読み取ると、下の「今回の対象」が自動入力されます。あとは紙に書かれた実績の数字を入力してEnter（または「登録する」）を押すだけです。バーコードリーダーが無い場合は「品番から選ぶ」で手動入力もできます。
+      作業票に印刷したバーコード（品番・部品・工程）を読み取ると、下の「今回の対象」が自動入力されます。あとは紙に書かれた実績の数字を入力してEnter（または「登録する」）を押すだけです。バーコードリーダーが無い場合は「品番から選ぶ」で手動入力もできます。<br>
+      「状況」欄で「未完」を選んで登録すると、その工程はまだ作業中として扱われ、残品表からは消えません（「完了」で登録した工程だけ残品表から外れます）。
     </div>
 
     <div class="scanCard">
@@ -183,6 +191,11 @@
         <div class="fItem"><label>良否</label>
           <select id="defectFlag"><option value="良">良</option><option value="否">否</option></select>
         </div>
+        <div class="fItem"><label>設備</label><input type="text" id="equipmentInput" placeholder="例）NC-3"></div>
+        <div class="fItem"><label>その他</label><input type="text" id="otherInput" placeholder="備考など"></div>
+        <div class="fItem"><label>状況</label>
+          <select id="completionSel"><option value="完了">完了</option><option value="未完">未完</option></select>
+        </div>
         <button type="button" class="commitBtn" id="commitBtn">登録する（Enter）</button>
         <button type="button" class="clearBtn" id="clearBtn">対象をクリア</button>
       </div>
@@ -192,6 +205,7 @@
       <div class="listHead">
         <span class="lTitle">入力済み実績</span>
         <span class="lCount" id="logCount"></span>
+        <select id="filterEmployee" title="社員No別で絞り込み"><option value="">社員No：すべて</option></select>
         <input type="date" id="filterDate" title="この日だけ表示">
       </div>
       <div id="logListArea"></div>
@@ -456,6 +470,9 @@
   const nightHoursInput = document.getElementById('nightHours');
   const qtyInput = document.getElementById('qtyInput');
   const defectFlagSel = document.getElementById('defectFlag');
+  const equipmentInput = document.getElementById('equipmentInput');
+  const otherInput = document.getElementById('otherInput');
+  const completionSel = document.getElementById('completionSel');
 
   function numOrZero(el){ const v = Number(el.value); return isFinite(v) ? v : 0; }
 
@@ -473,6 +490,9 @@
       unmannedHours: numOrZero(unmannedHoursInput), nightHours: numOrZero(nightHoursInput),
       qty: qtyInput.value ? Number(qtyInput.value) : '',
       defectFlag: defectFlagSel.value,
+      equipment: equipmentInput.value.trim(),
+      other: otherInput.value.trim(),
+      completion: completionSel.value,
       createdAt: new Date().toISOString()
     };
     logEntries.push(entry);
@@ -486,8 +506,9 @@
     // 次の1件へ：日付・社員Noは引き継ぎ、対象と数値だけリセット（同じ人がまとめて処理することが多いため）
     current = null;
     renderCurInfo();
-    [setupHoursInput, mannedHoursInput, unmannedHoursInput, nightHoursInput, qtyInput].forEach(el=> el.value='');
+    [setupHoursInput, mannedHoursInput, unmannedHoursInput, nightHoursInput, qtyInput, equipmentInput, otherInput].forEach(el=> el.value='');
     defectFlagSel.value = '良';
+    completionSel.value = '完了';
     renderLog();
     focusScan();
   }
@@ -496,7 +517,7 @@
     current = null; renderCurInfo(); focusScan();
   });
   // Enterキーで登録欄内のどこからでも登録できるようにする（社員No〜良否のどこでEnterしても良い）
-  [employeeNoInput, setupHoursInput, mannedHoursInput, unmannedHoursInput, nightHoursInput, qtyInput].forEach(el=>{
+  [employeeNoInput, setupHoursInput, mannedHoursInput, unmannedHoursInput, nightHoursInput, qtyInput, equipmentInput, otherInput].forEach(el=>{
     el.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); commitEntry(); } });
   });
 
@@ -504,11 +525,25 @@
   const logListArea = document.getElementById('logListArea');
   const logCountEl = document.getElementById('logCount');
   const filterDateInput = document.getElementById('filterDate');
+  const filterEmployeeSel = document.getElementById('filterEmployee');
+  // ---- 社員No絞り込みのプルダウンを、これまで登録された実績の中から重複無しで作る ----
+  function refreshEmployeeFilterOptions(){
+    const current = filterEmployeeSel.value;
+    const nos = Array.from(new Set(logEntries.map(e=> (e.employeeNo||'').trim()).filter(Boolean)))
+      .sort((a,b)=> a.localeCompare(b, 'ja', { numeric:true }));
+    filterEmployeeSel.innerHTML = '<option value="">社員No：すべて</option>'
+      + nos.map(no=> '<option value="'+esc(no)+'">社員No：'+esc(no)+'</option>').join('');
+    if(nos.includes(current)) filterEmployeeSel.value = current;
+  }
   function renderLog(){
     logEntries = loadLog();
+    refreshEmployeeFilterOptions();
     let list = logEntries.slice().sort((a,b)=> (b.createdAt||'').localeCompare(a.createdAt||''));
     if(filterDateInput.value){
       list = list.filter(e=> e.date === filterDateInput.value);
+    }
+    if(filterEmployeeSel.value){
+      list = list.filter(e=> (e.employeeNo||'').trim() === filterEmployeeSel.value);
     }
     logCountEl.textContent = '（'+list.length+'件）';
     if(!list.length){
@@ -517,7 +552,8 @@
     }
     logListArea.innerHTML = '<table class="logTable"><thead><tr>'
       + '<th>日付</th><th>社員No</th><th>品番</th><th>客先／型式</th><th>部品</th><th>工程</th>'
-      + '<th>段取</th><th>有人</th><th>無人</th><th>夜間</th><th>数量</th><th>良否</th><th></th>'
+      + '<th>段取</th><th>有人</th><th>無人</th><th>夜間</th><th>数量</th><th>良否</th>'
+      + '<th>設備</th><th>その他</th><th>状況</th><th></th>'
       + '</tr></thead><tbody>'
       + list.map(e=>
         '<tr data-id="'+esc(e.id)+'">'
@@ -533,6 +569,9 @@
         + '<td class="numCell">'+esc(e.nightHours||0)+'</td>'
         + '<td class="numCell">'+esc(e.qty||'―')+'</td>'
         + '<td>'+esc(e.defectFlag||'良')+'</td>'
+        + '<td>'+esc(e.equipment||'―')+'</td>'
+        + '<td>'+esc(e.other||'―')+'</td>'
+        + '<td style="'+(e.completion==='未完'?'color:#c0392b;font-weight:700;':'')+'">'+esc(e.completion||'完了')+'</td>'
         + '<td><button type="button" class="delBtn" data-role="del" data-id="'+esc(e.id)+'">✕</button></td>'
         + '</tr>'
       ).join('')
@@ -547,6 +586,7 @@
     renderLog();
   });
   filterDateInput.addEventListener('change', renderLog);
+  filterEmployeeSel.addEventListener('change', renderLog);
 
   window.addEventListener('storage', (e)=>{
     if(!e.key) return;

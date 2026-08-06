@@ -259,13 +259,15 @@
     return !!code && (/^NC/.test(code) || !!PHYSICAL_PROC_CODES[code]);
   }
 
-  // ---- 実績入力で登録済みの工程id一覧（＝完了済みの工程）。実際に完了記録が付いた工程はここで除外する ----
+  // ---- 実績入力で登録済みの工程id一覧（＝完了済みの工程）。実際に完了記録が付いた工程はここで除外する。
+  // 実績入力側に「完了／未完」欄が追加されたため、「未完」で登録された分はまだ作業中とみなし、
+  // 残品表からは消さない（completion項目が無い古いデータは、これまで通り「完了」扱いのままにする）----
   function loadDoneProcIds(){
     const set = new Set();
     try{
       const raw = localStorage.getItem(LOG_KEY);
       const list = raw ? JSON.parse(raw) : [];
-      list.forEach(e=>{ if(e && e.procId) set.add(e.procId); });
+      list.forEach(e=>{ if(e && e.procId && e.completion !== '未完') set.add(e.procId); });
     }catch(e){}
     return set;
   }
