@@ -246,6 +246,11 @@
     flex:1 1 auto; width:100%; border:none; background:transparent; resize:none; font-family:inherit;
     font-size:12.5px; color:#5c4a1a; padding:0 8px 8px; box-sizing:border-box; line-height:1.5; outline:none;
   }
+  /* 縦書き・細幅メモ（右クリックメニューの「縦書きにする」で切り替え。横幅を狭くしても文字が縦に流れて入る） */
+  .memoNote.vertical{ min-width:34px; }
+  .memoNote.vertical .memoNoteBody{
+    writing-mode:vertical-rl; text-orientation:upright; padding:8px 4px 8px; text-align:start;
+  }
   .memoNoteResize{
     position:absolute; right:1px; bottom:1px; width:14px; height:14px; cursor:nwse-resize;
   }
@@ -414,6 +419,7 @@
   </div>
 
   <div class="barCtxMenu" id="memoCtxMenu">
+    <button type="button" id="ctxToggleMemoVertical">縦書きにする（細幅）</button>
     <button type="button" class="danger" id="ctxDeleteMemo">削除</button>
   </div>
 
@@ -879,7 +885,7 @@
     memos.forEach(memo=>{
       ensureMemoTail(memo);
       const el = document.createElement('div');
-      el.className = 'memoNote';
+      el.className = 'memoNote' + (memo.vertical ? ' vertical' : '');
       el.dataset.memoId = memo.id;
       el.style.left = memo.x+'px';
       el.style.top = memo.y+'px';
@@ -2282,6 +2288,7 @@
 
   const memoCtxMenu = document.getElementById('memoCtxMenu');
   const ctxDeleteMemo = document.getElementById('ctxDeleteMemo');
+  const ctxToggleMemoVertical = document.getElementById('ctxToggleMemoVertical');
   let ctxMemoTarget = null;
   function openMemoCtxMenu(x, y){
     memoCtxMenu.classList.add('open');
@@ -2301,6 +2308,8 @@
     if(!noteEl) return;
     e.preventDefault();
     ctxMemoTarget = noteEl.dataset.memoId;
+    const memo = memos.find(m=>m.id===ctxMemoTarget);
+    ctxToggleMemoVertical.textContent = (memo && memo.vertical) ? '横書きに戻す' : '縦書きにする（細幅）';
     openMemoCtxMenu(e.clientX, e.clientY);
   });
   document.addEventListener('click', (e)=>{
@@ -2309,6 +2318,27 @@
     closeMemoCtxMenu();
   });
   window.addEventListener('scroll', closeMemoCtxMenu, true);
+  // ---- メモの縦書き・細幅⇄横書きの切り替え。幅を切り替えた時に元のサイズへ戻せるよう、
+  // 切り替え前の幅・高さをprevW/prevHに退避しておく ----
+  ctxToggleMemoVertical.addEventListener('click', ()=>{
+    if(!ctxMemoTarget) return;
+    const memo = memos.find(m=>m.id===ctxMemoTarget);
+    closeMemoCtxMenu();
+    if(!memo) return;
+    if(memo.vertical){
+      memo.vertical = false;
+      memo.w = memo.prevW || 180;
+      memo.h = memo.prevH || 92;
+    }else{
+      memo.prevW = memo.w;
+      memo.prevH = memo.h;
+      memo.vertical = true;
+      memo.w = 40;
+      memo.h = Math.max(memo.h, 160);
+    }
+    saveMemos();
+    render();
+  });
   ctxDeleteMemo.addEventListener('click', ()=>{
     if(!ctxMemoTarget) return;
     const idx = memos.findIndex(m=>m.id===ctxMemoTarget);

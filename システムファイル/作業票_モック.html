@@ -91,6 +91,12 @@
   table.partsTable col.colQty{ width:56px; }
   table.partsTable col.colMemo{ width:120px; }
   table.partsTable col.colProc{ width:auto; }
+  /* 注記欄の縦書き・細幅モード（トグルボタンで切り替え） */
+  table.partsTable.memoVertical col.colMemo{ width:34px; }
+  table.partsTable.memoVertical input.cellInput[data-field="memo"]{
+    writing-mode:vertical-rl; text-orientation:upright; height:110px; width:100%;
+    margin:0 auto; text-align:start; border-bottom:none; border-right:1.5px dashed #c7cfdc; padding:4px 2px;
+  }
   .cellInput{
     width:100%; border:none; border-bottom:1.5px dashed #c7cfdc; background:transparent; font-size:12.5px;
     font-weight:600; color:#1a2233; padding:3px 2px; font-family:inherit; min-width:0; box-sizing:border-box;
@@ -223,6 +229,7 @@
         <div style="display:flex; align-items:center; gap:12px;">
           <div class="title">部品一覧</div>
           <button class="addPartBtn" id="addPartBtn">＋ 部品を追加</button>
+          <button type="button" class="addPartBtn" id="memoVerticalToggleBtn" style="background:#8592a6;">📐 注記を縦書き表示</button>
         </div>
         <div class="headRightBtns">
           <button type="button" class="addPartBtn" id="toOrderNoticeBtn" style="background:#173a68;">📄 受注に関する連絡書を開く</button>
@@ -231,7 +238,7 @@
         </div>
       </div>
       <div class="partsScroll" id="partsScroll">
-        <table class="partsTable">
+        <table class="partsTable" id="partsTable">
           <colgroup>
             <col class="colNo"><col class="colSubNo"><col class="colCode"><col class="colName">
             <col class="colMaterial"><col class="colFinishedSize"><col class="colHeatTreat"><col class="colSurfaceTreat">
@@ -658,6 +665,26 @@
 
   // ---- 部品テーブル ----
   const partsBody = document.getElementById('partsBody');
+
+  // ---- 注記欄の縦書き・細幅表示トグル（既存の横書き表示と切り替えられるようにする。表示の好みなので
+  // このブラウザだけに閉じても良いが、他の画面と同じくsakaeIS_プレフィックスで保存し、他端末でも揃うようにする） ----
+  const MEMO_VERTICAL_KEY = 'sakaeIS_sagyohyoMock_memoVertical_v1';
+  function loadMemoVerticalMode(){
+    try{ return localStorage.getItem(MEMO_VERTICAL_KEY) === '1'; }catch(e){ return false; }
+  }
+  let memoVerticalMode = loadMemoVerticalMode();
+  const partsTableEl = document.getElementById('partsTable');
+  const memoVerticalToggleBtn = document.getElementById('memoVerticalToggleBtn');
+  function applyMemoVerticalMode(){
+    partsTableEl.classList.toggle('memoVertical', memoVerticalMode);
+    memoVerticalToggleBtn.textContent = memoVerticalMode ? '📐 注記を横書き表示' : '📐 注記を縦書き表示';
+  }
+  memoVerticalToggleBtn.addEventListener('click', ()=>{
+    memoVerticalMode = !memoVerticalMode;
+    try{ localStorage.setItem(MEMO_VERTICAL_KEY, memoVerticalMode ? '1' : '0'); }catch(e){}
+    applyMemoVerticalMode();
+  });
+  applyMemoVerticalMode();
 
   // NC1・NC2ウラ・NC3ヨコ・NC4オモテ2など、NCに続く数字部分だけを取り出す（NCMは対象外）
   function ncNum(code){
