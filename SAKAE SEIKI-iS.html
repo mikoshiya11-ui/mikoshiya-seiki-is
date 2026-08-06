@@ -340,7 +340,7 @@
 </head>
 <body>
 
-  <div class="topbar"><span id="lastUpdatedLabel"></span><span>㈱ミコシヤ社内システム</span></div>
+  <div class="topbar"><span id="lastUpdatedLabel"></span><span id="changePwLink" style="cursor:pointer; text-decoration:underline;" title="ログインパスワードを変更します">🔑 パスワード変更</span><span>㈱ミコシヤ社内システム</span></div>
 
   <div class="hero" id="hero">
     <div class="logo"><img src="システムファイル/logo2.png" alt="SAKAE SEIKI-iS"></div>
@@ -590,6 +590,31 @@
         <button class="btn ghost" id="backToSagyohyoBtn" type="button" style="display:none;">← 作業票に戻る</button>
         <button class="btn ghost" id="cancelNewBtn" type="button">キャンセル</button>
         <button class="btn primary" id="saveNewBtn" type="button">この内容で登録</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- パスワード変更 -->
+  <div class="overlay" id="pwOverlay" style="display:none;">
+    <div class="modal" style="max-width:420px;">
+      <div class="mHead">
+        <h3>パスワード変更</h3>
+        <button id="closePwBtn" type="button">&times;</button>
+      </div>
+      <div class="mBody">
+        <div class="field full">
+          <label>新しいパスワード<span class="req">必須</span></label>
+          <input type="password" id="pw_new1" autocomplete="new-password">
+        </div>
+        <div class="field full" style="margin-top:12px;">
+          <label>新しいパスワード（確認）<span class="req">必須</span></label>
+          <input type="password" id="pw_new2" autocomplete="new-password">
+        </div>
+        <div id="pwMsg" style="font-size:12px; color:#c0392b; margin-top:10px; display:none;"></div>
+      </div>
+      <div class="mFoot">
+        <button class="btn ghost" id="cancelPwBtn" type="button">キャンセル</button>
+        <button class="btn primary" id="savePwBtn" type="button">変更する</button>
       </div>
     </div>
   </div>
@@ -1736,6 +1761,52 @@
     let bs;
     try{ bs = JSON.parse(e.newValue); }catch(err){ return; }
     if(bs && bs.order) syncRecordFromBuhinOrder(bs.order);
+  });
+
+  // ---- パスワード変更（本人が自分のログインパスワードを変更する）----
+  // サインアップ画面が無いのと同じ考え方で、パスワードリセットのメール送信フローも用意していないため、
+  // ログイン中のセッションに対してSupabaseのauth.updateUser()で直接変更する、最もシンプルな方式にしている。
+  const pwOverlay = document.getElementById('pwOverlay');
+  const pwMsg = document.getElementById('pwMsg');
+  function openPwModal(){
+    document.getElementById('pw_new1').value = '';
+    document.getElementById('pw_new2').value = '';
+    pwMsg.style.display = 'none';
+    pwOverlay.style.display = 'flex';
+  }
+  function closePwModal(){ pwOverlay.style.display = 'none'; }
+  function showPwErr(msg){ pwMsg.textContent = msg; pwMsg.style.display = 'block'; }
+  document.getElementById('changePwLink').addEventListener('click', ()=>{
+    if(!window.sakaeSupabase){
+      alert('現在ログイン共有機能がオフになっているため、パスワード変更はできません。');
+      return;
+    }
+    openPwModal();
+  });
+  document.getElementById('closePwBtn').addEventListener('click', closePwModal);
+  document.getElementById('cancelPwBtn').addEventListener('click', closePwModal);
+  pwOverlay.addEventListener('click', (e)=>{ if(e.target===pwOverlay) closePwModal(); });
+  document.getElementById('savePwBtn').addEventListener('click', async ()=>{
+    const p1 = document.getElementById('pw_new1').value;
+    const p2 = document.getElementById('pw_new2').value;
+    if(!p1 || p1.length < 6){ showPwErr('パスワードは6文字以上で入力してください。'); return; }
+    if(p1 !== p2){ showPwErr('確認用パスワードが一致しません。'); return; }
+    if(!window.sakaeSupabase){ showPwErr('ログイン共有機能がオフのため変更できません。'); return; }
+    const btn = document.getElementById('savePwBtn');
+    btn.disabled = true; btn.textContent = '変更中…';
+    let result;
+    try{
+      result = await window.sakaeSupabase.auth.updateUser({ password: p1 });
+    }catch(e){
+      result = { error: e };
+    }
+    btn.disabled = false; btn.textContent = '変更する';
+    if(result && result.error){
+      showPwErr('変更に失敗しました：'+(result.error.message || result.error));
+      return;
+    }
+    closePwModal();
+    alert('パスワードを変更しました。次回ログインからは新しいパスワードを使ってください。');
   });
 
   render();
