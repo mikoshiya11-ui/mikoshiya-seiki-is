@@ -51,10 +51,15 @@
 
   .slipPanel{ flex:1 1 0; min-width:0; display:flex; }
 
-  /* 左端の縦書きラベル（現物の「作業票」「作業票（控）」「NO.」の縦書き部分） */
+  /* 左端の縦書きラベル（現物の「作業票」「作業票（控）」「NO.」の縦書き部分）。
+     このパネルは真ん中あたり（本票と完了チケット／控えタグの境目）で切り離して使うため、
+     文字が真ん中に来ると切り取り線にかかって邪魔になる。なので上寄せで固定し、さらに
+     margin-topでパネル上端よりもかなり高い位置まで引き上げて、中央から離しておく。
+     flex-directionはwriting-mode:vertical-rlの中では「column＝横方向」「row＝縦方向」に
+     入れ替わるため、上から順に積み上げるにはrowを指定する ---- */
   .slipSideLabel{
-    flex:0 0 26px; background:#f7f9fc; border-right:1.5px solid #222; display:flex; flex-direction:column;
-    align-items:center; justify-content:flex-start; gap:4px; padding:0 0 14px; margin-top:-34px;
+    flex:0 0 26px; background:#f7f9fc; border-right:1.5px solid #222; display:flex; flex-direction:row;
+    align-items:center; justify-content:flex-start; gap:8px; padding:0; margin-top:-40px;
     writing-mode:vertical-rl; text-orientation:upright;
   }
   .slipSideLabel .slipSideTitle{ font-size:12px; font-weight:800; color:#173a68; letter-spacing:.08em; }
