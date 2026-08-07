@@ -57,7 +57,11 @@
     body{ background:#fff; }
     .screenBar{ display:none; }
     .sheetOuter{ padding:0; }
-    .sheet{ box-shadow:none; border:1px solid #222; width:auto; height:auto; }
+    /* ---- widthとheightはautoにしない：.sheetの198mm×285mmは@pageの印刷可能領域（A4 210×297mmから
+       margin6mm×2を引いた値）と一致させてあり、上下2つのkanbanPanelがflex:1 1 50%でちょうど
+       半分ずつに広がることで初めて「上下2面」のレイアウトになる。autoにすると内容の少なさで
+       枠が縮み、ページ下半分が大きく余白化してしまう（実機の印刷プレビューで確認された不具合）---- */
+    .sheet{ box-shadow:none; border:1px solid #222; }
   }
   .emptyState{ color:#c0392b; font-size:13px; padding:30px; text-align:center; }
 </style>
