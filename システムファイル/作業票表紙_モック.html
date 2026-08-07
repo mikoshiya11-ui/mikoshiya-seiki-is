@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>作業票表紙｜SAKAE SEIKI-iS</title>
+<style>
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:#e9edf3; color:#1a2233;
+    font-family:"Hiragino Sans","Yu Gothic",-apple-system,BlinkMacSystemFont,sans-serif;
+  }
+  .screenBar{
+    display:flex; align-items:center; gap:12px; padding:10px 18px; background:#173a68; color:#fff; font-size:13px;
+  }
+  .screenBar a{ color:#cfe0f5; text-decoration:none; font-size:12px; }
+  .screenBar a:hover{ text-decoration:underline; }
+  .screenBar button{
+    margin-left:auto; border:none; background:#e67e22; color:#fff; font-weight:700; font-size:12.5px;
+    padding:7px 16px; border-radius:6px; cursor:pointer; font-family:inherit;
+  }
+  .screenBar button:hover{ filter:brightness(1.08); }
+
+  @page{ size: A5 landscape; margin: 5mm; }
+
+  .sheetOuter{ display:flex; justify-content:center; padding:18px; }
+  .sheet{
+    background:#fff; width:210mm; height:148mm; box-shadow:0 4px 20px rgba(0,0,0,.15);
+    display:flex; border:1.2px solid #222; position:relative;
+  }
+  .sideCol{
+    flex:0 0 24mm; border-right:1.5px solid #222; display:flex; flex-direction:column;
+    align-items:center; justify-content:flex-start; padding-top:6mm;
+  }
+  .sideTitle{
+    writing-mode:vertical-rl; text-orientation:upright; font-size:20px; font-weight:700; letter-spacing:2px;
+  }
+  .sideNoLabel{
+    writing-mode:vertical-rl; text-orientation:upright; font-size:11px; font-weight:700; color:#5b6b84; margin-top:10mm;
+  }
+  .sideNoVal{
+    writing-mode:vertical-rl; text-orientation:upright; font-size:14px; font-weight:700; margin-top:3mm; letter-spacing:1px;
+  }
+
+  .mainCol{ flex:1 1 auto; display:flex; flex-direction:column; padding:5mm 6mm; min-width:0; }
+  .headRow{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:3mm; }
+  .headRow .customer{ font-size:15px; font-weight:700; }
+  .headRow .issueDate{ font-size:10.5px; color:#5b6b84; }
+
+  table.infoTable{ border-collapse:collapse; width:100%; font-size:10.5px; table-layout:fixed; }
+  table.infoTable th, table.infoTable td{
+    border:1px solid #7c8494; padding:2.6mm 2mm; text-align:left; vertical-align:top;
+  }
+  table.infoTable th{ background:#f2f4f8; font-weight:700; color:#3a4a63; white-space:nowrap; width:20mm; }
+  table.infoTable td{ font-weight:600; }
+  .noteCell{ height:14mm; }
+
+  @media print{
+    body{ background:#fff; }
+    .screenBar{ display:none; }
+    .sheetOuter{ padding:0; }
+    .sheet{ box-shadow:none; border:1px solid #222; width:auto; height:auto; }
+  }
+  .emptyState{ color:#c0392b; font-size:13px; padding:30px; text-align:center; }
+</style>
+<script src="_sakaeSupabaseConfig.js"></script>
+<script src="_sakaeSync.js"></script>
+<script src="_workStartPrintCommon.js"></script>
+</head>
+<body>
+
+  <div class="screenBar">
+    <a href="#" id="backLink">← 作業開始印刷セットへ戻る</a>
+    <span>作業票表紙（A5横）</span>
+    <button type="button" onclick="window.print()">🖨 印刷</button>
+  </div>
+
+  <div class="sheetOuter" id="sheetOuter"></div>
+
+<script>
+(function(){
+  const params = new URLSearchParams(location.search);
+  const productNo = (params.get('productNo') || '').trim();
+  const P = window.sakaeWorkStartPrint;
+  document.getElementById('backLink').setAttribute('href', '作業開始印刷セット_モック.html?productNo='+encodeURIComponent(productNo));
+
+  const sheetOuter = document.getElementById('sheetOuter');
+  if(!productNo){
+    sheetOuter.innerHTML = '<div class="emptyState">品番が指定されていません。</div>';
+    return;
+  }
+
+  function collectProcessSummary(parts){
+    let earliest = null, latest = null, hoursSum = 0, hasHours = false;
+    const codes = new Set();
+    (parts||[]).forEach(p=>{
+      (p.processes||[]).forEach(pr=>{
+        if(pr.code) codes.add(pr.code);
+        if(pr.date){
+          if(!earliest || pr.date < earliest) earliest = pr.date;
+          if(!latest || pr.date > latest) latest = pr.date;
+        }
+        if(pr.hours){ const n = Number(pr.hours); if(!isNaN(n)){ hoursSum += n; hasHours = true; } }
+      });
+    });
+    return { codes: Array.from(codes), earliest, latest, hoursSum: hasHours ? hoursSum : null };
+  }
+
+  function render(){
+    const bs = P.loadBs(productNo);
+    if(!bs || !bs.order){
+      sheetOuter.innerHTML = '<div class="emptyState">品番「'+P.esc(productNo)+'」の作業票データが見つかりません。先に作業票を作成してください。</div>';
+      return;
+    }
+    const o = bs.order || {};
+    const notice = bs.orderNotice || {};
+    const summary = collectProcessSummary(bs.parts);
+
+    sheetOuter.innerHTML =
+      '<div class="sheet">'
+      + '<div class="sideCol">'
+      +   '<div class="sideTitle">作業票</div>'
+      +   '<div class="sideNoLabel">NO．</div>'
+      +   '<div class="sideNoVal">'+P.esc(o.orderNo||o.productNo||'')+'</div>'
+      + '</div>'
+      + '<div class="mainCol">'
+      +   '<div class="headRow"><div class="customer">'+P.esc(o.customer||'（客先未入力）')+'　様</div><div class="issueDate">発行日：'+P.esc(P.fmtDateJp(o.issueDate))+'</div></div>'
+      +   '<table class="infoTable">'
+      +     '<tr><th>社内No.</th><td>'+P.esc(o.orderNo||'')+'</td><th>品番</th><td>'+P.esc(o.productNo||'')+'</td></tr>'
+      +     '<tr><th>品名</th><td>'+P.esc(o.itemName||'')+'</td><th>型番</th><td>'+P.esc(o.model||'')+'</td></tr>'
+      +     '<tr><th>数量</th><td>'+P.esc(o.qty||'')+'</td><th>受注日</th><td>'+P.esc(P.fmtDateJp(o.orderDate))+'</td></tr>'
+      +     '<tr><th>納期</th><td>'+P.esc(P.fmtDateJp(o.dueDate))+'</td><th>機械名</th><td></td></tr>'
+      +     '<tr><th>作業No.</th><td></td><th>外注／担当者</th><td></td></tr>'
+      +     '<tr><th>工程</th><td colspan="3">'+P.esc(summary.codes.join('　'))+'</td></tr>'
+      +     '<tr><th>着手</th><td>'+P.esc(P.fmtDateJp(summary.earliest))+'</td><th>完成</th><td>'+P.esc(P.fmtDateJp(summary.latest))+'</td></tr>'
+      +     '<tr><th>実働Ｈ</th><td>'+P.esc(summary.hoursSum!=null ? summary.hoursSum : '')+'</td><th>見積Ｈ</th><td></td></tr>'
+      +     '<tr><th>備考</th><td colspan="3" class="noteCell">'+P.esc(notice.note||'')+'</td></tr>'
+      +   '</table>'
+      + '</div>'
+      + '</div>';
+  }
+  render();
+  window.addEventListener('storage', (e)=>{
+    if(e.key !== P.storageKeyFor(productNo)) return;
+    render();
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>手配チェックシート｜SAKAE SEIKI-iS</title>
+<style>
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:#e9edf3; color:#1a2233;
+    font-family:"Hiragino Sans","Yu Gothic",-apple-system,BlinkMacSystemFont,sans-serif;
+  }
+  .screenBar{
+    display:flex; align-items:center; gap:12px; padding:10px 18px; background:#173a68; color:#fff; font-size:13px;
+  }
+  .screenBar a{ color:#cfe0f5; text-decoration:none; font-size:12px; }
+  .screenBar a:hover{ text-decoration:underline; }
+  .screenBar .rightBtns{ margin-left:auto; display:flex; gap:8px; }
+  .screenBar button{
+    border:none; color:#fff; font-weight:700; font-size:12.5px;
+    padding:7px 16px; border-radius:6px; cursor:pointer; font-family:inherit;
+  }
+  #saveBtn{ background:#2c72c7; }
+  #printBtn{ background:#e67e22; }
+  .screenBar button:hover{ filter:brightness(1.08); }
+  .saveMsg{ font-size:11.5px; color:#cfe0f5; }
+
+  @page{ size: A4 landscape; margin: 7mm; }
+
+  .sheetOuter{ display:flex; justify-content:center; padding:18px; }
+  .sheet{
+    background:#fff; width:297mm; min-height:190mm; box-shadow:0 4px 20px rgba(0,0,0,.15);
+    border:1.2px solid #222; padding:8mm 10mm;
+  }
+  .sheetTitle{ text-align:center; font-size:17px; font-weight:700; letter-spacing:4px; margin-bottom:5mm; }
+  .headGrid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:3mm 6mm; font-size:11.5px; margin-bottom:5mm; }
+  .headGrid .f{ display:flex; flex-direction:column; gap:2px; }
+  .headGrid label{ font-size:10px; color:#5b6b84; font-weight:700; }
+  .headGrid input, .headGrid select{
+    border:none; border-bottom:1.3px solid #7c8494; font-size:12.5px; font-weight:700; padding:2px 2px 3px;
+    font-family:inherit; background:transparent;
+  }
+  .headGrid input:focus, .headGrid select:focus{ outline:none; border-bottom-color:#173a68; background:#f4f8ff; }
+  .headGrid .readonlyVal{ font-size:12.5px; font-weight:700; border-bottom:1.3px solid #d7dce4; padding:2px 2px 3px; min-height:18px; }
+
+  table.checkTable{ border-collapse:collapse; width:100%; font-size:11px; table-layout:fixed; }
+  table.checkTable th, table.checkTable td{
+    border:1px solid #7c8494; padding:2mm 2mm; text-align:center; vertical-align:middle;
+  }
+  table.checkTable th{ background:#f2f4f8; font-weight:700; color:#3a4a63; }
+  table.checkTable td.itemCell{ text-align:left; font-weight:700; }
+  table.checkTable col.cItem{ width:19%; }
+  table.checkTable col.cDays{ width:8%; }
+  table.checkTable col.cDeadline{ width:12%; }
+  table.checkTable col.cDone{ width:14%; }
+  table.checkTable col.cCheck{ width:14%; }
+  table.checkTable col.cProc{ width:33%; }
+  table.checkTable td.procCell{ text-align:left; font-size:10px; color:#5b6b84; }
+  table.checkTable input[type="date"], table.checkTable input[type="text"]{
+    border:none; background:transparent; font-size:11px; font-family:inherit; width:100%; text-align:center;
+  }
+  table.checkTable input:focus{ outline:none; background:#f4f8ff; }
+
+  .footRow{ display:flex; justify-content:flex-end; gap:16mm; margin-top:6mm; font-size:11.5px; }
+  .footRow .f{ display:flex; align-items:center; gap:6px; }
+  .footRow input{ border:none; border-bottom:1.3px solid #7c8494; font-size:12px; padding:2px 6px; font-family:inherit; width:120px; }
+  .footRow input:focus{ outline:none; border-bottom-color:#173a68; }
+
+  @media print{
+    body{ background:#fff; }
+    .screenBar{ display:none; }
+    .sheetOuter{ padding:0; }
+    .sheet{ box-shadow:none; border:1px solid #222; width:auto; min-height:auto; }
+  }
+  .emptyState{ color:#c0392b; font-size:13px; padding:30px; text-align:center; }
+</style>
+<script src="_sakaeSupabaseConfig.js"></script>
+<script src="_sakaeSync.js"></script>
+<script src="_workStartPrintCommon.js"></script>
+</head>
+<body>
+
+  <div class="screenBar">
+    <a href="#" id="backLink">← 作業開始印刷セットへ戻る</a>
+    <span>手配チェックシート（A4横）</span>
+    <div class="rightBtns">
+      <span class="saveMsg" id="saveMsg"></span>
+      <button type="button" id="saveBtn">💾 保存</button>
+      <button type="button" id="printBtn">🖨 印刷</button>
+    </div>
+  </div>
+
+  <div class="sheetOuter" id="sheetOuter"></div>
+
+<script>
+(function(){
+  const params = new URLSearchParams(location.search);
+  const productNo = (params.get('productNo') || '').trim();
+  const P = window.sakaeWorkStartPrint;
+  document.getElementById('backLink').setAttribute('href', '作業開始印刷セット_モック.html?productNo='+encodeURIComponent(productNo));
+  document.getElementById('printBtn').addEventListener('click', ()=> window.print());
+
+  const sheetOuter = document.getElementById('sheetOuter');
+  if(!productNo){
+    sheetOuter.innerHTML = '<div class="emptyState">品番が指定されていません。</div>';
+    return;
+  }
+
+  let bs = null;
+  let ac = null; // arrangementCheck（bsの参照。編集はこのオブジェクトを直接書き換えてsaveBs()する）
+
+  function esc(s){ return P.esc(s); }
+
+  function buildRows(){
+    return P.ARRANGEMENT_CHECK_ITEMS.map(def=>{
+      const it = ac.items[def.key];
+      const deadline = it.deadline || (def.days!=null ? P.addBusinessDays(ac.inputDate, def.days) : '');
+      return '<tr data-key="'+def.key+'">'
+        + '<td class="itemCell">'+esc(def.label)+'</td>'
+        + '<td>'+(def.days!=null ? def.days+'日' : '－')+'</td>'
+        + '<td>'+esc(P.fmtDateJp(deadline))+'</td>'
+        + '<td><input type="date" data-field="completedDate" value="'+esc(it.completedDate)+'"></td>'
+        + '<td><input type="text" data-field="checkedBy" value="'+esc(it.checkedBy)+'" placeholder="確認者"></td>'
+        + '</tr>';
+    }).join('');
+  }
+
+  function render(){
+    bs = P.loadBs(productNo);
+    if(!bs || !bs.order){
+      sheetOuter.innerHTML = '<div class="emptyState">品番「'+esc(productNo)+'」の作業票データが見つかりません。先に作業票を作成してください。</div>';
+      return;
+    }
+    ac = P.ensureArrangementCheck(bs);
+    const o = bs.order || {};
+
+    sheetOuter.innerHTML =
+      '<div class="sheet">'
+      + '<div class="sheetTitle">生産管理手配チェックシート</div>'
+      + '<div class="headGrid">'
+      +   '<div class="f"><label>管理No.（社内No.）</label><div class="readonlyVal">'+esc(o.orderNo||o.productNo||'')+'</div></div>'
+      +   '<div class="f"><label>品番</label><div class="readonlyVal">'+esc(o.productNo||'')+'</div></div>'
+      +   '<div class="f"><label>型番</label><div class="readonlyVal">'+esc(o.model||'')+'</div></div>'
+      +   '<div class="f"><label>品名</label><div class="readonlyVal">'+esc(o.itemName||'')+'</div></div>'
+      +   '<div class="f"><label>入力日</label><input type="date" id="inputDateInput" value="'+esc(ac.inputDate)+'"></div>'
+      +   '<div class="f"><label>区分</label><select id="categorySelect">'
+      +     ['新作','修改','予備品'].map(v=>'<option value="'+v+'"'+(ac.category===v?' selected':'')+'>'+v+'</option>').join('')
+      +   '</select></div>'
+      + '</div>'
+      + '<table class="checkTable">'
+      +   '<colgroup><col class="cItem"><col class="cDays"><col class="cDeadline"><col class="cDone"><col class="cCheck"></colgroup>'
+      +   '<thead><tr><th>項　目</th><th>目安</th><th>期限</th><th>完了日</th><th>確認</th></tr></thead>'
+      +   '<tbody id="checkBody">'+buildRows()+'</tbody>'
+      + '</table>'
+      + '<div class="footRow">'
+      +   '<div class="f"><span>作成</span><input type="text" id="createdByInput" value="'+esc(ac.createdBy)+'"></div>'
+      +   '<div class="f"><span>承認</span><input type="text" id="approvedByInput" value="'+esc(ac.approvedBy)+'"></div>'
+      + '</div>'
+      + '</div>';
+
+    document.getElementById('inputDateInput').addEventListener('change', (e)=>{ ac.inputDate = e.target.value; renderRowsOnly(); });
+    document.getElementById('categorySelect').addEventListener('change', (e)=>{ ac.category = e.target.value; });
+    document.getElementById('createdByInput').addEventListener('input', (e)=>{ ac.createdBy = e.target.value; });
+    document.getElementById('approvedByInput').addEventListener('input', (e)=>{ ac.approvedBy = e.target.value; });
+    document.getElementById('checkBody').addEventListener('input', (e)=>{
+      const tr = e.target.closest('tr[data-key]');
+      const field = e.target.dataset.field;
+      if(!tr || !field) return;
+      ac.items[tr.dataset.key][field] = e.target.value;
+    });
+  }
+  function renderRowsOnly(){
+    const body = document.getElementById('checkBody');
+    if(body) body.innerHTML = buildRows();
+  }
+
+  render();
+
+  function doSave(){
+    if(!bs) return;
+    P.saveBs(productNo, bs);
+    const msg = document.getElementById('saveMsg');
+    if(msg){
+      const d = new Date();
+      msg.textContent = '保存しました（'+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+'）';
+      setTimeout(()=>{ if(msg.textContent.indexOf('保存')===0) msg.textContent=''; }, 4000);
+    }
+  }
+  document.getElementById('saveBtn').addEventListener('click', doSave);
+  // 印刷前にも必ず今の入力内容を保存しておく
+  window.addEventListener('beforeprint', doSave);
+
+  // ---- 別タブ・別PCでこの品番の作業票データが変わったら再読み込みする。
+  // ただし今フォーカス中の入力欄がある場合は、Realtime更新で突然上書きされないよう反映を後回しにする ----
+  window.addEventListener('storage', (e)=>{
+    if(e.key !== P.storageKeyFor(productNo)) return;
+    const tag = document.activeElement && document.activeElement.tagName;
+    if(tag==='INPUT' || tag==='SELECT') return;
+    render();
+  });
+})();
+</script>
+</body>
+</html>

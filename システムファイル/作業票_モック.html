@@ -63,6 +63,16 @@
     border:none; background:#173a68; color:#fff; font-size:12px; font-weight:700; padding:7px 14px;
     border-radius:8px; cursor:pointer; font-family:inherit; display:inline-block; text-decoration:none;
   }
+  /* ---- 作業票を案件の中心画面にするための、上部の関連書類ボタン列（受注に関する連絡書・個別日程表・
+     作業開始印刷セット・現行の作業票印刷への導線をここにまとめる。狭い画面では折り返す） ---- */
+  .mainActionCard{ padding:12px 22px; }
+  .mainActionRow{ display:flex; flex-wrap:wrap; gap:10px; }
+  .mainActionBtn{
+    border:none; color:#fff; font-size:13px; font-weight:700; padding:9px 18px;
+    border-radius:8px; cursor:pointer; font-family:inherit; display:inline-flex; align-items:center; gap:4px;
+    text-decoration:none;
+  }
+  .mainActionBtn:hover{ filter:brightness(1.1); }
   .partsScroll{
     overflow-x:auto; padding:14px 22px 20px;
     scrollbar-width:thin; scrollbar-color:#c3cbdb #f0f2f7;
@@ -220,6 +230,15 @@
 
   <div class="wrap">
 
+    <div class="card mainActionCard" id="mainActionCard">
+      <div class="mainActionRow">
+        <a class="mainActionBtn" id="startPrintSetBtn" href="#" style="background:#c0392b;">🖨 作業開始印刷セット</a>
+        <a class="mainActionBtn" id="toKobetsuBtn" href="#" style="background:#e67e22;">📅 個別日程表を開く</a>
+        <button type="button" class="mainActionBtn" id="toOrderNoticeBtn" style="background:#173a68;">📄 受注に関する連絡書</button>
+        <a class="mainActionBtn" id="toSagyohyoBtn" href="#" style="background:#5b6b84;">🖨 現行の作業票印刷</a>
+      </div>
+    </div>
+
     <div class="card orderCard" id="orderCard"></div>
 
     <div class="confirmRow" id="confirmRow"></div>
@@ -230,11 +249,6 @@
           <div class="title">部品一覧</div>
           <button class="addPartBtn" id="addPartBtn">＋ 部品を追加</button>
           <button type="button" class="addPartBtn" id="memoVerticalToggleBtn" style="background:#8592a6;">📐 注記を縦書き表示</button>
-        </div>
-        <div class="headRightBtns">
-          <button type="button" class="addPartBtn" id="toOrderNoticeBtn" style="background:#173a68;">📄 受注に関する連絡書を開く</button>
-          <a class="addPartBtn" id="toSagyohyoBtn" href="#" style="background:#5b6b84;">作業票を印刷 →</a>
-          <a class="addPartBtn" id="toKobetsuBtn" href="#" style="background:#e67e22;">個別日程表を作る →</a>
         </div>
       </div>
       <div class="partsScroll" id="partsScroll">
@@ -400,6 +414,31 @@
     { group:'工程', items:['DE','SU','PN','LA','MI','NC','EW','GS','WEL','FIN','3D','NCM','OST','HET','外注'] },
   ];
 
+  // ---- 手配チェックシート固有項目（現物「生産管理手配チェックシート」に実在する12項目をそのまま採用）。
+  // daysは入力日からの目安期限（土日だけを除外した営業日換算。現物のExcelの目安日時・期限の実データから逆算して一致を確認済み）。
+  // 加工外注入荷チェックだけは現物でも目安「-」（期限計算なし・完了チェックのみ）。 ----
+  const ARRANGEMENT_CHECK_ITEMS = [
+    { key:'designDrawing',            label:'設計図面',           days:1  },
+    { key:'suppliedMaterial',         label:'材料手配(支給材料)', days:2  },
+    { key:'purchasedMaterial',        label:'材料手配(購入材料)', days:3  },
+    { key:'scheduleCreation',         label:'日程表作成',         days:2  },
+    { key:'workOrderCreation',        label:'作業票作成',         days:3  },
+    { key:'drawingIssue',             label:'出図',               days:3  },
+    { key:'suppliedPartsRequest',     label:'支給品申請',         days:5  },
+    { key:'purchasedPartsArrange',    label:'購入品手配',         days:5  },
+    { key:'outsourcingArrange',       label:'加工外注手配',       days:6  },
+    { key:'materialArrivalCheck',     label:'材料入荷チェック',   days:4  },
+    { key:'purchasedArrivalCheck',    label:'購入品入荷チェック', days:10 },
+    { key:'outsourcingArrivalCheck',  label:'加工外注入荷チェック', days:null },
+  ];
+  function defaultArrangementCheck(){
+    const items = {};
+    ARRANGEMENT_CHECK_ITEMS.forEach(def=>{
+      items[def.key] = { deadline:'', completedDate:'', checkedBy:'' };
+    });
+    return { category:'新作', inputDate:'', items: items, approvedBy:'', createdBy:'' };
+  }
+
   function esc(s){
     return (s==null?'':s).toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
@@ -410,10 +449,13 @@
     return {
       productNo: urlProductNo,
       orderNo: params.get('orderNo') || '',
+      issueDate: '',
       orderDate: params.get('orderDate') || '',
       dueDate: params.get('dueDate') || '',
       customer: params.get('customer') || '',
       model: params.get('modelName') || '',
+      itemName: params.get('itemName') || '',
+      qty: params.get('qty') || '',
       assembly:'有'
     };
   }
@@ -421,8 +463,8 @@
   // ---- 初期データ（実際に入力された案件を、社名等を仮名に置き換えてサンプルとして使用） ----
   function seedData(){
     const order = {
-      productNo:'35481000-11', orderNo:'', orderDate:'2026-07-23', dueDate:'2026-09-18',
-      customer:'株式会社ミコシヤ', model:'MKS(-)', assembly:'有', createdBy:'見越', createdDate:'2026-07-25', shipDate:'2026-09-17'
+      productNo:'35481000-11', orderNo:'', issueDate:'', orderDate:'2026-07-23', dueDate:'2026-09-18',
+      customer:'株式会社ミコシヤ', model:'MKS(-)', itemName:'', qty:'', assembly:'有', createdBy:'見越', createdDate:'2026-07-25', shipDate:'2026-09-17'
     };
     function proc(code, date, note, ampm, hours){ return { id: uid(), code, date: date||'', note: note||'', ampm: ampm||'AM', hours: hours||'' }; }
     const parts = [
@@ -451,6 +493,17 @@
     // ---- 受注に関する連絡書だけの項目（品種・見積・登録事項など）を保存する領域。
     // 古いデータには無いので、無ければ空オブジェクトとして補完する（受注に関する連絡書側で使う） ----
     st.orderNotice = st.orderNotice || {};
+    // ---- 手配チェックシート固有項目を保存する領域。古いデータには無いので補完する ----
+    if(!st.arrangementCheck) st.arrangementCheck = defaultArrangementCheck();
+    st.arrangementCheck.items = st.arrangementCheck.items || {};
+    ARRANGEMENT_CHECK_ITEMS.forEach(def=>{
+      if(!st.arrangementCheck.items[def.key]) st.arrangementCheck.items[def.key] = { deadline:'', completedDate:'', checkedBy:'' };
+    });
+    // ---- 作業票中心の運用に伴い新しく追加した共通項目（発行日・品名・数量）。古いデータには無いので補完する ----
+    st.order = st.order || {};
+    if(st.order.issueDate == null) st.order.issueDate = '';
+    if(st.order.itemName == null) st.order.itemName = '';
+    if(st.order.qty == null) st.order.qty = '';
     (st.parts||[]).forEach(p=>{
       if(p.finishedSize==null) p.finishedSize = '';
       if(p.heatTreatSpec==null) p.heatTreatSpec = '';
@@ -635,13 +688,16 @@
     orderCard.innerHTML = `
       <div class="oField"><label>品番</label><input data-of="productNo" value="${esc(o.productNo)}" readonly title="品番は新規作成時（社内No.）で決まるため、ここでは編集できません"></div>
       <div class="oField"><label>社内№</label><input data-of="orderNo" value="${esc(o.orderNo)}" style="min-width:100px;"></div>
+      <div class="oField"><label>発行日</label><input type="date" data-of="issueDate" value="${esc(o.issueDate)}" title="作業票表紙・手配チェックシートに使う発行日（受注日とは別項目）"></div>
       <div class="oField"><label>受注日</label><input type="date" data-of="orderDate" value="${esc(o.orderDate)}"></div>
       <div class="oField"><label>作成日</label><input type="date" data-of="createdDate" value="${esc(o.createdDate)}"></div>
       <div class="oField"><label>作成者</label><input data-of="createdBy" value="${esc(o.createdBy)}" style="min-width:90px;"></div>
       <div class="oField"><label>発送日</label><input type="date" data-of="shipDate" value="${esc(o.shipDate)}"></div>
       <div class="oField"><label>納期</label><input type="date" data-of="dueDate" value="${esc(o.dueDate)}"></div>
       <div class="oField"><label>客先名</label><input data-of="customer" value="${esc(o.customer)}"></div>
-      <div class="oField"><label>型式名</label><input data-of="model" value="${esc(o.model)}" style="min-width:160px;"></div>
+      <div class="oField"><label>型式名（型番）</label><input data-of="model" value="${esc(o.model)}" style="min-width:160px;"></div>
+      <div class="oField"><label>品名</label><input data-of="itemName" value="${esc(o.itemName)}" style="min-width:160px;"></div>
+      <div class="oField"><label>数量</label><input data-of="qty" value="${esc(o.qty)}" style="min-width:70px;"></div>
       <div class="oField"><label>組付有無</label>
         <select data-of="assembly">
           <option value="有"${o.assembly==='有'?' selected':''}>有</option>
@@ -919,8 +975,12 @@
   // 実際のaタグのhrefをクリック直前にセットして、ユーザーの直接クリックとして遷移させる
   const toKobetsuLink = document.getElementById('toKobetsuBtn');
   toKobetsuLink.setAttribute('target', '_blank');
-  toKobetsuLink.addEventListener('click', ()=>{
+  toKobetsuLink.addEventListener('click', async ()=>{
+    if(document.activeElement && typeof document.activeElement.blur === 'function'){
+      document.activeElement.blur();
+    }
     save();
+    if(window.sakaeSyncFlush){ try{ await window.sakaeSyncFlush(); }catch(e){} }
     const url = '個別日程表_モック.html?productNo='+encodeURIComponent(state.order.productNo);
     toKobetsuLink.setAttribute('href', url);
   });
@@ -928,10 +988,32 @@
   // ---- 作業票印刷へ ----
   const toSagyohyoLink = document.getElementById('toSagyohyoBtn');
   toSagyohyoLink.setAttribute('target', '_blank');
-  toSagyohyoLink.addEventListener('click', ()=>{
+  toSagyohyoLink.addEventListener('click', async ()=>{
+    if(document.activeElement && typeof document.activeElement.blur === 'function'){
+      document.activeElement.blur();
+    }
     save();
+    if(window.sakaeSyncFlush){ try{ await window.sakaeSyncFlush(); }catch(e){} }
     const url = '作業票印刷_モック.html?productNo='+encodeURIComponent(state.order.productNo);
     toSagyohyoLink.setAttribute('href', url);
+  });
+
+  // ---- 作業開始印刷セットへ（作業票表紙・手配チェックシート・カンバンをまとめて開く専用画面。新しいタブで開く） ----
+  const startPrintSetLink = document.getElementById('startPrintSetBtn');
+  startPrintSetLink.setAttribute('target', '_blank');
+  startPrintSetLink.addEventListener('click', async (e)=>{
+    if(!state.order.productNo){
+      e.preventDefault();
+      alert('品番が未設定のため、作業開始印刷セットを開けません。');
+      return;
+    }
+    if(document.activeElement && typeof document.activeElement.blur === 'function'){
+      document.activeElement.blur();
+    }
+    save();
+    if(window.sakaeSyncFlush){ try{ await window.sakaeSyncFlush(); }catch(e){} }
+    const url = '作業開始印刷セット_モック.html?productNo='+encodeURIComponent(state.order.productNo);
+    startPrintSetLink.setAttribute('href', url);
   });
 
   // ---- 受注に関する連絡書へ（同じタブで移動する「詳しい項目を見る／入力する」画面なので、

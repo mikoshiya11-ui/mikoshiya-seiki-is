@@ -44,7 +44,15 @@
   .checkCard{
     background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(20,35,70,.06); overflow:hidden; margin-bottom:16px;
   }
-  .checkCardTitle{ font-size:11px; font-weight:700; color:#5b6b84; padding:5px 14px 0; }
+  .checkCardTitle{
+    font-size:11px; font-weight:700; color:#5b6b84; padding:5px 14px 0;
+    display:flex; align-items:center; gap:10px;
+  }
+  .checkCardTitle #addCheckNameBtn{
+    border:1.5px solid #dfe4ec; background:#fff; color:#173a68; font-size:10.5px; font-weight:700;
+    padding:3px 9px; border-radius:6px; cursor:pointer; font-family:inherit;
+  }
+  .checkCardTitle #addCheckNameBtn:hover{ border-color:#173a68; }
 
   .confirmRow{ display:flex; align-items:center; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
   .confirmPlanBtn{
@@ -68,7 +76,17 @@
   .checkSideHead{ flex:0 0 280px; padding:4px 14px; font-size:11.5px; font-weight:700; color:#5b6b84; display:flex; align-items:center; border-right:1.5px solid #222; position:sticky; left:0; z-index:3; background:#f7f9fc; }
   .checkNameRow{ display:flex; align-items:stretch; height:20px; border-bottom:1px solid #f3f5f9; }
   .checkNameRow:last-child{ border-bottom:none; }
-  .checkNameCell{ flex:0 0 280px; padding:0 14px; font-size:12px; font-weight:700; color:#3a4a63; display:flex; align-items:center; border-right:1.5px solid #222; position:sticky; left:0; z-index:2; background:#fff; box-shadow:2px 0 4px -2px rgba(20,35,70,.15); }
+  .checkNameCell{
+    flex:0 0 280px; padding:0 8px 0 14px; font-size:12px; font-weight:700; color:#3a4a63; display:flex;
+    align-items:center; justify-content:space-between; gap:6px; border-right:1.5px solid #222; position:sticky;
+    left:0; z-index:2; background:#fff; box-shadow:2px 0 4px -2px rgba(20,35,70,.15);
+  }
+  .checkNameCell .checkNameText{ cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .checkNameCell .checkNameText:hover{ text-decoration:underline; }
+  .checkNameCell .checkNameBtns{ display:flex; align-items:center; gap:2px; flex:0 0 auto; }
+  .checkNameCell .checkNameDelBtn{
+    border:none; background:transparent; color:#c0392b; cursor:pointer; font-size:11px; padding:2px 3px; font-family:inherit;
+  }
   .checkCell{
     width:var(--day-w); flex:0 0 var(--day-w); display:flex; align-items:center; justify-content:center; cursor:pointer;
     border-right:1px solid #f3f5f9; user-select:none;
@@ -350,7 +368,9 @@
     </div>
 
     <div class="checkCard">
-      <div class="checkCardTitle">進捗チェック欄（担当者×日付でチェック）</div>
+      <div class="checkCardTitle">進捗チェック欄（担当者×日付でチェック）
+        <button type="button" id="addCheckNameBtn" title="担当者をこの案件に追加します">＋担当者を追加</button>
+      </div>
       <div class="checkScroll" id="checkScroll">
         <div class="checkInner" id="checkInner"></div>
       </div>
@@ -392,7 +412,7 @@
       元データ：個別日程表（例１）.xlsx「81970PMC №6」シート／実際のセル位置から工程日を再現し、準備／加工／仕上げの3行に集約<br>
       作業票の「個別日程表を作る」から開いた場合、作業票と工程データを直接共有しています（品番ごと）。バーの中央を動かすと日付が、両端をつまんで伸縮すると日数（作業期間）が、その場で作業票側に反映されます（開いている場合はリアルタイムに）。バーの新規作成・削除は作業票側の工程一覧にもそのまま反映されます。進捗チェックはこのページだけの保存です。<br>
       「＋ 部品を追加」でこの画面から新しい部品を追加できます（作業票に戻らなくてよい）。追加した部品名は行の名前部分をクリックすればいつでも変更できます。工程の追加は、部品の行の空いている段を右クリック→「バーの設置」から行えます（作業票側にもそのまま追加されます）。左側の部品名などが並ぶ欄を右クリックすると、部品名・材質など全項目＋工程をまるごと複製した行をすぐ下に追加できます。<br>
-      ※進捗チェック欄の担当者4名（テンチョー・コーダ・カツグくん・ケイリー）は現状すべての受注で固定表示です。案件ごとに担当者が変わるかは要確認。
+      ※進捗チェック欄の担当者名は、この案件ごとに入力・修正できます（名前をクリックで変更、✕で削除、「＋担当者を追加」で追加）。初めて開いた案件は、これまでの4名（テンチョー・コーダ・カツグくん・ケイリー）が初期値として表示されます。
     </div>
 
   </div>
@@ -1066,7 +1086,22 @@
 
   // ---- 進捗チェック欄（担当者×日付） ----
   const CHECK_KEY = nsKey('sakaeIS_kobetsuMock_checks_v1');
-  const CHECK_NAMES = ['テンチョー','コーダ','カツグくん','ケイリー'];
+  // ---- 担当者の名前一覧はこの案件ごとに入力・修正できる（以前は全案件共通で固定の4名だった）。
+  // 保存が無い場合は、これまでの固定4名を初期値として引き継ぐ ---- ----
+  const CHECK_NAMES_KEY = nsKey('sakaeIS_kobetsuMock_checkNames_v1');
+  const DEFAULT_CHECK_NAMES = ['テンチョー','コーダ','カツグくん','ケイリー'];
+  function loadCheckNames(){
+    try{
+      const raw = localStorage.getItem(CHECK_NAMES_KEY);
+      if(raw){
+        const arr = JSON.parse(raw);
+        if(Array.isArray(arr) && arr.length) return arr;
+      }
+    }catch(e){}
+    return DEFAULT_CHECK_NAMES.slice();
+  }
+  function saveCheckNames(){ localStorage.setItem(CHECK_NAMES_KEY, JSON.stringify(checkNames)); }
+  let checkNames = loadCheckNames();
   function loadChecks(){
     try{
       const raw = localStorage.getItem(CHECK_KEY);
@@ -1093,9 +1128,12 @@
     }
     html += '</div>';
 
-    CHECK_NAMES.forEach(name=>{
+    checkNames.forEach((name, nameIdx)=>{
       html += '<div class="checkNameRow">';
-      html += '<div class="checkNameCell">'+esc(name)+'</div>';
+      html += '<div class="checkNameCell">'
+        + '<span class="checkNameText" data-role="checkNameEdit" data-idx="'+nameIdx+'" title="クリックで名前を変更">'+esc(name)+'</span>'
+        + '<span class="checkNameBtns"><button type="button" class="checkNameDelBtn" data-role="checkNameDel" data-idx="'+nameIdx+'" title="この担当者を削除">✕</button></span>'
+        + '</div>';
       for(let i=0;i<unitCount;i++){
         const absIdx = baseIdx+i;
         const done = !!checksData[name+'_'+absIdx];
@@ -1107,12 +1145,55 @@
     checkInner.innerHTML = html;
   }
   checkInner.addEventListener('click', (e)=>{
+    const editEl = e.target.closest('[data-role="checkNameEdit"]');
+    if(editEl){
+      const idx = Number(editEl.dataset.idx);
+      const oldName = checkNames[idx];
+      const input = window.prompt('担当者の名前を入力してください', oldName);
+      if(input == null) return; // キャンセル
+      const newName = input.trim();
+      if(!newName || newName === oldName) return;
+      if(checkNames.includes(newName)){ alert('その名前は既に登録されています。'); return; }
+      // 名前を変えても、これまでのチェック済み記録が迷子にならないよう、保存キーの担当者名部分も一緒に付け替える
+      const prefix = oldName+'_';
+      Object.keys(checksData).forEach(k=>{
+        if(k.indexOf(prefix)===0){
+          checksData[newName+'_'+k.slice(prefix.length)] = checksData[k];
+          delete checksData[k];
+        }
+      });
+      checkNames[idx] = newName;
+      saveCheckNames();
+      saveChecks();
+      buildCheckGrid();
+      return;
+    }
+    const delEl = e.target.closest('[data-role="checkNameDel"]');
+    if(delEl){
+      const idx = Number(delEl.dataset.idx);
+      const name = checkNames[idx];
+      if(!window.confirm('担当者「'+name+'」をこの案件から削除しますか？（これまでのチェック記録は削除されません）')) return;
+      checkNames.splice(idx,1);
+      saveCheckNames();
+      buildCheckGrid();
+      return;
+    }
     const cell = e.target.closest('.checkCell');
     if(!cell) return;
     const key = cell.dataset.name+'_'+cell.dataset.day;
     checksData[key] = !checksData[key];
     saveChecks();
     cell.classList.toggle('done', !!checksData[key]);
+  });
+  document.getElementById('addCheckNameBtn').addEventListener('click', ()=>{
+    const input = window.prompt('追加する担当者の名前を入力してください');
+    if(input == null) return;
+    const name = input.trim();
+    if(!name) return;
+    if(checkNames.includes(name)){ alert('その名前は既に登録されています。'); return; }
+    checkNames.push(name);
+    saveCheckNames();
+    buildCheckGrid();
   });
 
   // ---- 進捗チェック欄とガントの横スクロールを同期（日付の位置を揃える） ----

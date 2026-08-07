@@ -116,6 +116,17 @@
   .card .modelName{ font-size:13px; color:#1a2233; margin-top:6px; font-weight:600; }
   .card .meta{ font-size:11.5px; color:#7a879c; margin-top:4px; line-height:1.6; }
   .card .meta b{ color:#3a4a63; }
+  .cardMainRow{ display:flex; align-items:center; gap:8px; margin-top:10px; }
+  .cardMainBtn{
+    flex:1 1 auto; border:none; background:#173a68; color:#fff; font-size:12px; font-weight:700;
+    padding:7px 10px; border-radius:6px; cursor:pointer; font-family:inherit;
+  }
+  .cardMainBtn:hover{ filter:brightness(1.12); }
+  .cardDetailLink{
+    flex:0 0 auto; border:1px solid #dfe4ec; background:#fff; color:#5b6b84; font-size:11.5px;
+    padding:7px 10px; border-radius:6px; cursor:pointer; font-family:inherit;
+  }
+  .cardDetailLink:hover{ border-color:#173a68; color:#173a68; }
   .cardDelBtn{
     flex:0 0 auto; width:18px; height:18px; border:none; border-radius:50%; padding:0;
     background:rgba(192,57,43,.08); color:#c0392b; font-size:10px; line-height:18px; text-align:center;
@@ -751,9 +762,12 @@
     const bs = {
       order: {
         productNo: rec.productNo, orderNo: rec.orderNo||'', orderDate: rec.orderDate||'',
-        dueDate: rec.dueDate||'', customer: rec.customer||'', model: rec.modelName||'', assembly:'有'
+        dueDate: rec.dueDate||'', customer: rec.customer||'', model: rec.modelName||'',
+        itemName: rec.itemName||'', qty: rec.qty||'', issueDate:'', assembly:'有'
       },
       parts: parts
+      // ---- ひな形からの複製ではorderNotice（受注に関する連絡書固有項目）・arrangementCheck（手配チェックシート固有項目）は
+      // 意図的に引き継がない。案件固有の検討状況・完了日・確認者などをひな形から誤って複製しないため（新しい案件は空の状態から開始する）----
     };
     localStorage.setItem('sakaeIS_buhinhyoMock_v1_' + rec.productNo, JSON.stringify(bs));
   }
@@ -762,8 +776,11 @@
   // まとめて保存し、新しい独立キーを増やさないようにする。records[]側にも従来通り持たせておき、
   // 一覧表示・CSV書き出し・印刷などの既存コードはそのまま動かす（bs.orderNoticeは同じ内容を
   // 保持する「正本」、records[]は一覧表示用のインデックス兼キャッシュという位置づけ）。 ----
+  // ---- itemName（品名）・qty（数量）は、実務フロー変更に伴い受注に関する連絡書だけの項目から
+  // 「作業票・受注に関する連絡書で共通の項目（bs.order側）」へ変更した。そのため、ここには含めない
+  // （下のsyncToBuhinState／mergedRecForFormで、customer・model等と同じ扱いで直接bs.orderと同期する）----
   const NOTICE_FIELD_KEYS = [
-    'tCode','itemName','category','subject','shikyu','qty','komeSu','amount','extraDocs',
+    'tCode','category','subject','shikyu','komeSu','amount','extraDocs',
     'infoForecast','drafter','mfgResp','salesResp','designResp','issueDate1','issueDate2','note',
     'status2','designSchedule','designPlan','costSummary','registration'
   ];
@@ -779,6 +796,8 @@
     bs.order = bs.order || {};
     bs.order.customer = rec.customer || '';
     bs.order.model = rec.modelName || '';
+    bs.order.itemName = rec.itemName || '';
+    bs.order.qty = rec.qty || '';
     bs.order.dueDate = rec.dueDate || '';
     bs.order.orderDate = rec.orderDate || '';
     bs.order.orderNo = rec.orderNo || '';
@@ -805,6 +824,8 @@
       merged.orderNo = bs.order.orderNo || rec.orderNo || '';
       merged.customer = bs.order.customer || rec.customer || '';
       merged.modelName = bs.order.model || rec.modelName || '';
+      merged.itemName = bs.order.itemName || rec.itemName || '';
+      merged.qty = bs.order.qty || rec.qty || '';
       merged.orderDate = bs.order.orderDate || rec.orderDate || '';
       merged.dueDate = bs.order.dueDate || rec.dueDate || '';
     }
@@ -906,7 +927,7 @@
       return (b.dueDate||'').localeCompare(a.dueDate||'');
     });
 
-    resultsMeta.textContent = '受注に関する連絡書カード ' + list.length + '件';
+    resultsMeta.textContent = '案件一覧 ' + list.length + '件';
     document.getElementById('exportCsvBtn').style.display = (filterMode==='done') ? 'inline-block' : 'none';
     if(list.length===0){
       resultGrid.innerHTML = '';
@@ -919,10 +940,14 @@
         ? '<span class="badge done">完了</span>'
         : '<span class="badge inprogress">進行中</span>';
       const tplBadge = r.isTemplate ? '<span class="badge template">⭐ ひな形</span>' : '';
+      const buhinExists = !!loadBuhinState(r.productNo);
+      const mainLabel = buhinExists ? '作業票を開く' : '作業票を作成する';
       return '<div class="card" data-id="'+r.id+'">'
         + '<div class="cardTop"><span class="productNo">'+esc(r.orderNo)+'</span><span class="badgeRow">'+tplBadge+statusBadge+'<button type="button" class="cardDelBtn" data-role="delCard" title="削除">✕</button></span></div>'
         + '<div class="modelName">'+esc(r.modelName || r.itemName || '(名称未設定)')+'</div>'
         + '<div class="meta"><b>客先：</b>'+esc(r.customer||'-')+'　<b>納期：</b>'+esc(fmtDate(r.dueDate))+'</div>'
+        + '<div class="cardMainRow"><button type="button" class="cardMainBtn" data-role="openSagyohyo">'+mainLabel+' →</button>'
+        + '<button type="button" class="cardDetailLink" data-role="openDetail" title="受注に関する連絡書の詳細を見る">詳細</button></div>'
         + '</div>';
     }).join('');
   }
@@ -1121,7 +1146,18 @@
     });
   }
 
-  resultGrid.addEventListener('click', (e)=>{
+  // ---- 案件カードの主ボタン：実務では作業票を先に作る／開くため、案件一覧からはここに直接遷移する（同じタブ）----
+  function buildSagyohyoUrl(rec){
+    return 'システムファイル/作業票_モック.html?productNo='+encodeURIComponent(rec.productNo)
+      +'&orderNo='+encodeURIComponent(rec.orderNo||'')
+      +'&customer='+encodeURIComponent(rec.customer||'')
+      +'&modelName='+encodeURIComponent(rec.modelName||'')
+      +'&itemName='+encodeURIComponent(rec.itemName||'')
+      +'&qty='+encodeURIComponent(rec.qty||'')
+      +'&orderDate='+encodeURIComponent(rec.orderDate||'')
+      +'&dueDate='+encodeURIComponent(rec.dueDate||'');
+  }
+  resultGrid.addEventListener('click', async (e)=>{
     const delBtn = e.target.closest('.cardDelBtn');
     if(delBtn){
       e.stopPropagation();
@@ -1131,7 +1167,19 @@
     }
     const card = e.target.closest('.card');
     if(!card) return;
-    openDetail(card.dataset.id);
+    const rec = records.find(r=>r.id===card.dataset.id);
+    if(!rec) return;
+    const detailBtn = e.target.closest('[data-role="openDetail"]');
+    if(detailBtn){
+      e.stopPropagation();
+      openDetail(rec.id);
+      return;
+    }
+    // カード本体（または「作業票を開く／作成する」ボタン）のクリックは、実務の主動線として作業票へ直接進む。
+    // 遷移前にSupabaseへの未反映分を先に送っておく（別PCで開いた時に最新状態が見えるように）
+    const url = buildSagyohyoUrl(rec);
+    if(window.sakaeSyncFlush){ try{ await window.sakaeSyncFlush(); }catch(err){} }
+    location.href = url;
   });
 
   // ---- 新規作成：見積／日程テーブル（工程名はフリー入力）／変動費摘要（固定項目）／設計計画サイドバー（固定・独立入力）----
@@ -1313,7 +1361,7 @@
   // ---- 新規作成：実務では受注に関する連絡書より先に作業票から作ることが多いため、
   // ここでは社内No.（＝品番・全ページの紐付けキー）だけを確認して、すぐに作業票を新規品番で開く。
   // 受注に関する連絡書の詳しい項目は、作業票の上部の「受注に関する連絡書を開く」ボタンから後で入力する。 ----
-  function startNewCase(){
+  async function startNewCase(){
     const input = window.prompt('新しい案件の社内No.を入力してください（後から変更できます）');
     if(input == null) return; // キャンセル
     const orderNo = input.trim();
@@ -1326,6 +1374,7 @@
       alert('社内No.「'+orderNo+'」は既に別の案件（'+(dupRec.modelName||dupRec.itemName||'名称未設定')+'）で使われています。別の番号にしてください。');
       return;
     }
+    if(window.sakaeSyncFlush){ try{ await window.sakaeSyncFlush(); }catch(e){} }
     location.href = 'システムファイル/作業票_モック.html?productNo='+encodeURIComponent(orderNo)+'&orderNo='+encodeURIComponent(orderNo);
   }
 
@@ -1582,15 +1631,10 @@
       }
     }
 
-    const partsUrl = 'システムファイル/作業票_モック.html?productNo='+encodeURIComponent(rec.productNo)
-      +'&orderNo='+encodeURIComponent(rec.orderNo||'')
-      +'&customer='+encodeURIComponent(rec.customer||'')
-      +'&modelName='+encodeURIComponent(rec.modelName||'')
-      +'&orderDate='+encodeURIComponent(rec.orderDate||'')
-      +'&dueDate='+encodeURIComponent(rec.dueDate||'');
+    const partsUrl = buildSagyohyoUrl(rec);
     const buhinExists = !!loadBuhinState(rec.productNo);
     const partsLabel = buhinExists ? '作業票を開く →' : '作業票を作成する →';
-    html += '<div class="detailLinkRow"><a class="btn primary" href="'+partsUrl+'" target="_blank">'+partsLabel+'</a></div>';
+    html += '<div class="detailLinkRow"><a class="btn primary" href="'+partsUrl+'">'+partsLabel+'</a></div>';
     html += '<div class="noteBox">実務では作業票（さらに個別日程表）を先に作成し、そこで入力した客先名・型式名・納期などがこの受注に関する連絡書にも自動反映されます。どちらで編集しても、もう片方に反映されます。</div>';
     detailBody.innerHTML = html;
     toggleDone.checked = rec.status === 'done';
@@ -1721,8 +1765,8 @@
       }
       rec = {
         id: uid(), productNo: productNo, orderNo: bs.order.orderNo||'', customer: bs.order.customer||'',
-        modelName: bs.order.model||'', itemName:'', category:'型', subject:'新作',
-        orderDate: bs.order.orderDate||'', dueDate: bs.order.dueDate||'', qty:'',
+        modelName: bs.order.model||'', itemName: bs.order.itemName||'', category:'型', subject:'新作',
+        orderDate: bs.order.orderDate||'', dueDate: bs.order.dueDate||'', qty: bs.order.qty||'',
         amount:'', manhour:'', drafter:'', note:'作業票から自動作成', status:'inprogress'
       };
       records.unshift(rec);
@@ -1741,15 +1785,17 @@
     if(idx > -1){
       const r = records[idx];
       const changed = r.customer!==(o.customer||'') || r.modelName!==(o.model||'') || r.dueDate!==(o.dueDate||'')
-        || r.orderDate!==(o.orderDate||'') || r.orderNo!==(o.orderNo||'');
+        || r.orderDate!==(o.orderDate||'') || r.orderNo!==(o.orderNo||'')
+        || r.itemName!==(o.itemName||'') || r.qty!==(o.qty||'');
       if(!changed) return;
       r.customer = o.customer||''; r.modelName = o.model||''; r.dueDate = o.dueDate||'';
       r.orderDate = o.orderDate||''; r.orderNo = o.orderNo||'';
+      r.itemName = o.itemName||''; r.qty = o.qty||'';
     }else{
       records.unshift({
         id: uid(), productNo: o.productNo, orderNo: o.orderNo||'', customer: o.customer||'',
-        modelName: o.model||'', itemName:'', category:'型', subject:'新作',
-        orderDate: o.orderDate||'', dueDate: o.dueDate||'', qty:'',
+        modelName: o.model||'', itemName: o.itemName||'', category:'型', subject:'新作',
+        orderDate: o.orderDate||'', dueDate: o.dueDate||'', qty: o.qty||'',
         amount:'', manhour:'', drafter:'', note:'作業票から自動作成', status:'inprogress'
       });
     }

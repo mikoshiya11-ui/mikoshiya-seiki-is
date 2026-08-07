@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>作業開始印刷セット｜SAKAE SEIKI-iS</title>
+<style>
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:#f4f6fa; color:#1a2233;
+    font-family:"Hiragino Sans","Yu Gothic",-apple-system,BlinkMacSystemFont,sans-serif;
+  }
+  .topbar{
+    background:#173a68; color:#fff; padding:10px 24px; display:flex; align-items:center; gap:10px;
+    font-size:13px; font-weight:700;
+  }
+  .topbar .brand{ display:flex; align-items:baseline; gap:2px; }
+  .topbar .brand .sakae{ color:#fff; }
+  .topbar .brand .is{ color:#f0a35c; }
+  .topbar .sep{ color:#5b7aab; }
+  .topbar .pageName{ font-weight:400; color:#cfe0f5; }
+  .topbar .backLink{ margin-right:auto; color:#cfe0f5; text-decoration:none; font-size:12px; font-weight:400; }
+  .topbar .backLink:hover{ text-decoration:underline; }
+
+  .wrap{ max-width:720px; margin:0 auto; padding:28px 20px 60px; }
+  .card{ background:#fff; border-radius:14px; box-shadow:0 2px 10px rgba(20,35,70,.06); padding:22px 26px; margin-bottom:18px; }
+  h1{ font-size:18px; margin:0 0 4px; color:#173a68; }
+  .subNote{ font-size:12px; color:#8592a6; margin:0 0 18px; }
+  .infoGrid{ display:grid; grid-template-columns:90px 1fr; gap:8px 14px; font-size:13.5px; }
+  .infoGrid .k{ color:#8592a6; font-weight:700; }
+  .infoGrid .v{ font-weight:700; color:#1a2233; }
+
+  .setList{ display:flex; flex-direction:column; gap:14px; }
+  .setItem{
+    display:flex; align-items:center; justify-content:space-between; gap:14px;
+    border:1px solid #e6eaf1; border-radius:10px; padding:14px 18px;
+  }
+  .setItem .num{
+    flex:0 0 auto; width:26px; height:26px; border-radius:50%; background:#173a68; color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:12.5px; font-weight:700;
+  }
+  .setItem .body{ flex:1 1 auto; }
+  .setItem .title{ font-size:14px; font-weight:700; color:#1a2233; }
+  .setItem .spec{ font-size:11.5px; color:#8592a6; margin-top:2px; }
+  .setItem .goBtn{
+    flex:0 0 auto; border:none; background:#e67e22; color:#fff; font-size:12.5px; font-weight:700;
+    padding:9px 16px; border-radius:8px; cursor:pointer; font-family:inherit; text-decoration:none; display:inline-block;
+  }
+  .setItem .goBtn:hover{ filter:brightness(1.08); }
+
+  .backRow{ text-align:center; margin-top:22px; }
+  .backRow a{
+    color:#5b6b84; font-size:13px; text-decoration:none; border:1px solid #dfe4ec; padding:9px 20px; border-radius:8px;
+  }
+  .backRow a:hover{ border-color:#173a68; color:#173a68; }
+  .emptyState{ color:#c0392b; font-size:13px; padding:12px 0; }
+</style>
+<script src="_sakaeSupabaseConfig.js"></script>
+<script src="_sakaeSync.js"></script>
+<script src="_workStartPrintCommon.js"></script>
+</head>
+<body>
+
+  <div class="topbar">
+    <a class="backLink" href="#" id="backLink" title="作業票に戻る">← 作業票に戻る</a>
+    <span class="brand"><span class="sakae">SAKAE SEIKI</span><span class="is">-iS</span></span>
+    <span class="sep">｜</span>
+    <span class="pageName">作業開始印刷セット</span>
+  </div>
+
+  <div class="wrap">
+    <div class="card">
+      <h1>🖨 作業開始印刷セット</h1>
+      <p class="subNote">作業開始時にワンセットで使う3帳票（① 作業票表紙 A5横／② 手配チェックシート A4横／③ カンバン A4縦・上下2面）を、この画面からまとめて開いて印刷できます。用紙サイズ・向きが異なるため、1回の印刷ジョブでは出さず、下のボタンから帳票ごとに順番に開いて印刷してください。</p>
+      <div class="infoGrid" id="infoGrid"></div>
+    </div>
+
+    <div class="card">
+      <div class="setList" id="setList"></div>
+    </div>
+
+    <div class="backRow"><a href="#" id="backLink2">← 作業票へ戻る</a></div>
+  </div>
+
+<script>
+(function(){
+  const params = new URLSearchParams(location.search);
+  const productNo = (params.get('productNo') || '').trim();
+  const P = window.sakaeWorkStartPrint;
+  const backUrl = '作業票_モック.html?productNo=' + encodeURIComponent(productNo);
+  document.getElementById('backLink').setAttribute('href', backUrl);
+  document.getElementById('backLink2').setAttribute('href', backUrl);
+
+  const infoGrid = document.getElementById('infoGrid');
+  const setList = document.getElementById('setList');
+
+  if(!productNo){
+    infoGrid.innerHTML = '<div class="emptyState" style="grid-column:1/-1;">品番が指定されていません。作業票から開いてください。</div>';
+    setList.innerHTML = '';
+    return;
+  }
+
+  function render(){
+    const bs = P.loadBs(productNo);
+    const o = (bs && bs.order) || {};
+    infoGrid.innerHTML =
+      '<div class="k">対象品番</div><div class="v">'+P.esc(productNo)+'</div>'
+      + '<div class="k">社内No.</div><div class="v">'+P.esc(o.orderNo||'-')+'</div>'
+      + '<div class="k">客先</div><div class="v">'+P.esc(o.customer||'-')+'</div>'
+      + '<div class="k">品名</div><div class="v">'+P.esc(o.itemName||'-')+'</div>';
+
+    const items = [
+      { title:'① 作業票表紙', spec:'A5横・1ページ', url:'作業票表紙_モック.html' },
+      { title:'② 手配チェックシート', spec:'A4横', url:'手配チェックシート_モック.html' },
+      { title:'③ カンバン', spec:'A4縦・同一内容を上下2面', url:'カンバン_モック.html' },
+    ];
+    setList.innerHTML = items.map((it,i)=>
+      '<div class="setItem">'
+      + '<div class="num">'+(i+1)+'</div>'
+      + '<div class="body"><div class="title">'+it.title+'</div><div class="spec">'+it.spec+'</div></div>'
+      + '<a class="goBtn" href="'+it.url+'?productNo='+encodeURIComponent(productNo)+'" target="_blank">表示・印刷</a>'
+      + '</div>'
+    ).join('');
+  }
+  render();
+
+  // ---- 別タブ・別PCでこの品番の作業票データが変わったら、対象品番情報の表示を更新する ----
+  window.addEventListener('storage', (e)=>{
+    if(e.key !== P.storageKeyFor(productNo)) return;
+    render();
+  });
+})();
+</script>
+</body>
+</html>
