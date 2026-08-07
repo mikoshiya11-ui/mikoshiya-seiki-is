@@ -935,14 +935,18 @@
       resultGrid.innerHTML = '<div class="emptyState" style="grid-column:1/-1;">該当する案件がありません。「＋ 新規作成」から登録できます。</div>';
       return;
     }
-    resultGrid.innerHTML = list.map(r=>{
+    resultGrid.innerHTML = list.map(r0=>{
+      // ---- カード表示は records[] のキャッシュではなく、作業票側（bs.order）の最新値を優先して表示する。
+      // records[]は作業票の保存のたびに直接書き換わる／別タブでの変更もstorageイベントで反映されるが、
+      // それでも一瞬ズレる可能性があるため、表示直前にもう一度bs.orderへマージしておく ----
+      const r = mergedRecForForm(r0);
       const statusBadge = r.status==='done'
         ? '<span class="badge done">完了</span>'
         : '<span class="badge inprogress">進行中</span>';
       const tplBadge = r.isTemplate ? '<span class="badge template">⭐ ひな形</span>' : '';
       const buhinExists = !!loadBuhinState(r.productNo);
       const mainLabel = buhinExists ? '作業票を開く' : '作業票を作成する';
-      return '<div class="card" data-id="'+r.id+'">'
+      return '<div class="card" data-id="'+r0.id+'">'
         + '<div class="cardTop"><span class="productNo">'+esc(r.orderNo)+'</span><span class="badgeRow">'+tplBadge+statusBadge+'<button type="button" class="cardDelBtn" data-role="delCard" title="削除">✕</button></span></div>'
         + '<div class="modelName">'+esc(r.modelName || r.itemName || '(名称未設定)')+'</div>'
         + '<div class="meta"><b>客先：</b>'+esc(r.customer||'-')+'　<b>納期：</b>'+esc(fmtDate(r.dueDate))+'</div>'

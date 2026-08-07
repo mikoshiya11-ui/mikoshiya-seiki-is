@@ -69,5 +69,25 @@ window.sakaeWorkStartPrint = (function(){
     return m[1]+'/'+m[2]+'/'+m[3];
   }
 
-  return { storageKeyFor, esc, ARRANGEMENT_CHECK_ITEMS, loadBs, saveBs, ensureArrangementCheck, addBusinessDays, fmtDateJp };
+  // ---- 実働時間（実績）：工程の「見積工数」ではなく、実績入力_モック.html（sakaeIS_jissekiLog_v1）に
+  // 実際に記録された段取／有人／無人／夜間の各時間を、この品番に一致する分だけ合計する。
+  // 実績が1件も無ければnullを返す（呼び出し側は空欄表示にすること。0時間と実績無しを区別するため）。----
+  const JISSEKI_LOG_KEY = 'sakaeIS_jissekiLog_v1';
+  function sumActualHours(productNo){
+    if(!productNo) return null;
+    let list;
+    try{
+      const raw = localStorage.getItem(JISSEKI_LOG_KEY);
+      list = raw ? JSON.parse(raw) : [];
+    }catch(e){ return null; }
+    const rows = (list||[]).filter(e=> e && e.productNo === productNo);
+    if(!rows.length) return null;
+    let sum = 0;
+    rows.forEach(e=>{
+      sum += (Number(e.setupHours)||0) + (Number(e.mannedHours)||0) + (Number(e.unmannedHours)||0) + (Number(e.nightHours)||0);
+    });
+    return sum;
+  }
+
+  return { storageKeyFor, esc, ARRANGEMENT_CHECK_ITEMS, loadBs, saveBs, ensureArrangementCheck, addBusinessDays, fmtDateJp, sumActualHours };
 })();

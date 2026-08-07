@@ -90,8 +90,12 @@
     return;
   }
 
-  function collectProcessSummary(parts){
-    let earliest = null, latest = null, hoursSum = 0, hasHours = false;
+  // ---- 工程コード・着手日・完成日は部品データから実際に集計する（実在するデータのため推測にあたらない）。
+  // 実働Hは工程の「見積工数」ではなく、実績入力_モック.html に記録された実際の作業実績時間
+  // （sakaeIS_jissekiLog_v1／段取・有人・無人・夜間の合計）をこの品番分だけ集計する。
+  // 実績が1件も無ければ空欄のまま表示する（見積工数を実績として誤表示しないため）----
+  function collectProcessSummary(parts, productNo){
+    let earliest = null, latest = null;
     const codes = new Set();
     (parts||[]).forEach(p=>{
       (p.processes||[]).forEach(pr=>{
@@ -100,10 +104,9 @@
           if(!earliest || pr.date < earliest) earliest = pr.date;
           if(!latest || pr.date > latest) latest = pr.date;
         }
-        if(pr.hours){ const n = Number(pr.hours); if(!isNaN(n)){ hoursSum += n; hasHours = true; } }
       });
     });
-    return { codes: Array.from(codes), earliest, latest, hoursSum: hasHours ? hoursSum : null };
+    return { codes: Array.from(codes), earliest, latest, hoursSum: P.sumActualHours(productNo) };
   }
 
   function render(){
@@ -114,7 +117,7 @@
     }
     const o = bs.order || {};
     const notice = bs.orderNotice || {};
-    const summary = collectProcessSummary(bs.parts);
+    const summary = collectProcessSummary(bs.parts, productNo);
 
     sheetOuter.innerHTML =
       '<div class="sheet">'

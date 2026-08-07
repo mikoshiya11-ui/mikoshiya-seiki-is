@@ -537,7 +537,23 @@
     }
     localStorage.setItem(DAYS_UPGRADE_KEY, '1');
   }
-  upgradeDaysOnce();
+  // ---- 共有テスト（_sakaeSync.js）が有効な場合、ページ読み込み直後はまだSupabase側の初回同期（initialSync）が
+  // 終わっていないことがある。その状態でここを実行すると、まだ取り込んでいないリモートの正しいデータより先に
+  // ローカルの（古いかもしれない）内容で上書き保存してしまう恐れがあるため、下のclearStaleHoursOnce()と同じく
+  // 同期の初回読み込みが終わる（window.sakaeSupabaseが使えるようになる）のを待ってから実行する ----
+  (function scheduleUpgradeDaysOnce(){
+    const syncOff = (typeof window.SAKAE_SYNC_ENABLED !== 'undefined' && !window.SAKAE_SYNC_ENABLED)
+      || !window.SAKAE_SUPABASE_URL || !window.SAKAE_SUPABASE_ANON_KEY;
+    if(syncOff){ upgradeDaysOnce(); return; }
+    let tries = 0;
+    const timer = setInterval(()=>{
+      tries++;
+      if(window.sakaeSupabase || tries>40){
+        clearInterval(timer);
+        upgradeDaysOnce();
+      }
+    }, 500);
+  })();
 
   // ---- 一度だけの移行処理：見積工数(hours)は今のところどの画面からも編集できず、元のExcel移行時の
   // 数値がそのまま残っているだけで、今後の実態を表すものではないため、既存データからは一律で消しておく。
@@ -622,14 +638,16 @@
       const r = records[idx];
       r.customer = o.customer;
       r.modelName = o.model;
+      r.itemName = o.itemName || '';
+      r.qty = o.qty || '';
       r.dueDate = o.dueDate;
       r.orderDate = o.orderDate;
       r.orderNo = o.orderNo;
     }else{
       records.unshift({
         id: uid(), productNo: o.productNo, orderNo: o.orderNo||'', customer: o.customer||'',
-        modelName: o.model||'', itemName:'', category:'型', subject:'新作',
-        orderDate: o.orderDate||'', dueDate: o.dueDate||'', qty:'',
+        modelName: o.model||'', itemName: o.itemName||'', category:'型', subject:'新作',
+        orderDate: o.orderDate||'', dueDate: o.dueDate||'', qty: o.qty||'',
         amount:'', manhour:'', drafter:'', note:'作業票から自動作成', status:'inprogress'
       });
     }
